@@ -1,43 +1,22 @@
-package model;
+package DTO;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "users")
-public class User {
+public class UserDTO {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY) // для BIGSERIAL
     private Long id;
-
-    @Column(nullable = false, unique = true, length = 255)
     private String email;
-
-    @Column(nullable = false, unique = true, length = 255)
     private String username;
-
-    @Column(length = 255)
     private String password;
-
-    @Column(nullable = false, length = 31)
-    private String status = "PENDING_VERIFICATION";
-
-    @Column(name = "email_verified_at")
+    private String status;
     private LocalDateTime emailVerifiedAt;
+    private Boolean enabled;
+    private LocalDateTime createdAt;
 
-    @Column(nullable = false)
-    private Boolean enabled = true;
-
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
-
-    // ===== Constructors =====
-
-    public User() {
+    public UserDTO() {
     }
 
-    public User(String email, String username, String password) {
+    public UserDTO(String email, String username, String password) {
         this.email = email;
         this.username = username;
         this.password = password;
@@ -46,14 +25,14 @@ public class User {
         this.createdAt = LocalDateTime.now();
     }
 
-    public User(Long id,
-                String email,
-                String username,
-                String password,
-                String status,
-                LocalDateTime emailVerifiedAt,
-                Boolean enabled,
-                LocalDateTime createdAt) {
+    public UserDTO(Long id,
+                   String email,
+                   String username,
+                   String password,
+                   String status,
+                   LocalDateTime emailVerifiedAt,
+                   Boolean enabled,
+                   LocalDateTime createdAt) {
         this.id = id;
         this.email = email;
         this.username = username;
@@ -64,7 +43,7 @@ public class User {
         this.createdAt = createdAt;
     }
 
-    // ===== Getters =====
+    // ===== GETTERS =====
 
     public Long getId() {
         return id;
@@ -98,7 +77,7 @@ public class User {
         return createdAt;
     }
 
-    // ===== Setters =====
+    // ===== SETTERS =====
 
     public void setId(Long id) {
         this.id = id;
@@ -132,3 +111,5 @@ public class User {
         this.createdAt = createdAt;
     }
 }
+
+
