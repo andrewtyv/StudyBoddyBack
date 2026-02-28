@@ -72,6 +72,9 @@ public class Friendship {
     public LocalDateTime getFriendshipUpdatedAt() {
         return friendshipUpdatedAt;
     }
+    public void setStatus(FriendshipStatus status){
+        this.status = status;
+    }
 
 }
 

@@ -43,7 +43,7 @@ public class RegistrationController {
             return new ApiResponse("User with this username and password already exists ",null);
         }
 
-        model.User user = new model.User(username, email,passwordEncoder.encode(password));
+        model.User user = new model.User( email,username,passwordEncoder.encode(password));
 
         userRepo.save(user);
 
@@ -59,8 +59,7 @@ public class RegistrationController {
         String encodedPassword = passwordEncoder.encode(password);
 
         model.User user =userRepo.findByUsername(username);
-        if(user!=null && passwordEncoder.matches(encodedPassword,user.getPassword())) {
-            //String token = jwtUtil.generateToken(username);
+        if (user != null && passwordEncoder.matches(password, user.getPassword())) {            //String token = jwtUtil.generateToken(username);
             return new ApiResponse("Login succesfull","token");
         }
         return new ApiResponse("invalid email or password", null);

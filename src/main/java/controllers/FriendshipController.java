@@ -41,8 +41,10 @@ public class FriendshipController {
 
     @PostMapping("/make_request")
     public ApiResponse makeRequest(@RequestBody Map<String, String> request) {
-        String requesterUsername = request.get("requester_username");
-        String addresseeUsername = request.get("addressee_username");
+        String requesterUsername = request.get("requester_username").trim();
+        String addresseeUsername = request.get("addressee_username").trim();
+
+        System.out.println(requesterUsername + "   requester       " + addresseeUsername);
 
         User requester = userRepo.findByUsername(requesterUsername);
         User addressee = userRepo.findByUsername(addresseeUsername);
@@ -92,7 +94,7 @@ public class FriendshipController {
         return ApiResponseWrapper.ok(dto);
     }
 
-    @GetMapping("friend-requests/outgoing")
+    @GetMapping("/friend-requests/outgoing")
     public ApiResponseWrapper<List<FriendshipDTO>> outgoing(@RequestParam String username){
         User me = userRepo.findByUsername(username);
 
@@ -112,5 +114,46 @@ public class FriendshipController {
 
     }
 
+    @PutMapping("/friend-requests/accept")
+    public ApiResponse acceptFriendship(@RequestBody Map<String, String> api){
 
+
+        Friendship friendship =  getFriendship(api);
+
+        if (friendship== null) {
+            return new ApiResponse("this friedship never existed",null);
+        }
+        friendship.setStatus(FriendshipStatus.ACCEPTED);
+        friendshipRepo.save(friendship);
+        return new ApiResponse("friendship accepted", null);
+    }
+
+
+    @PutMapping("/friend-requests/reject")
+    public ApiResponse rejectFriendship(@RequestBody Map<String,String> api){
+
+        Friendship friendship = getFriendship(api);
+        if (friendship == null) {
+            return new ApiResponse("this friendship neber existed", null);
+        }
+        friendship.setStatus(FriendshipStatus.REJECTED);
+
+        return new ApiResponse("friendship rejected", null);
+    }
+
+    private Friendship getFriendship(Map<String,String> api){
+        String requesterUsername = api.get("requester_username");
+        String addresseeUsername = api.get("addressee_username");
+
+        if (requesterUsername == null || addresseeUsername == null) return null;
+
+
+        User requester = userRepo.findByUsername(requesterUsername);
+        User addressee = userRepo.findByUsername(addresseeUsername);
+
+        if (requester == null || addressee == null) return null;
+
+        Friendship friendship =  friendshipRepo.findByRequester_IdAndAddressee_Id(requester.getId(), addressee.getId());
+        return friendship;
+    }
 }
