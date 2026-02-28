@@ -40,21 +40,33 @@ public class FriendshipController {
 
 
     @PostMapping("/make_request")
-    public ApiResponse makeRequest(@RequestBody Map<String, String> request){
+    public ApiResponse makeRequest(@RequestBody Map<String, String> request) {
         String requesterUsername = request.get("requester_username");
         String addresseeUsername = request.get("addressee_username");
 
-        model.User requester = userRepo.findByUsername(requesterUsername);
-        model.User addressee = userRepo.findByUsername(addresseeUsername);
+        User requester = userRepo.findByUsername(requesterUsername);
+        User addressee = userRepo.findByUsername(addresseeUsername);
 
-
-        if (friendshipRepo.existsByRequester_IdAndAddressee_Id(requester.getId(),addressee.getId())) {
-            return new ApiResponse("the request already exist or declined",null);
+        if (requester == null || addressee == null) {
+            return new ApiResponse("user not found", null);
         }
 
-        friendshipRepo.save(new Friendship(requester,addressee));
-        return new ApiResponse("request succesfully created",null);
+        if (requester.getId().equals(addressee.getId())) {
+            return new ApiResponse("cannot add yourself", null);
+        }
+
+        boolean exists = friendshipRepo.existsByRequester_IdAndAddressee_Id(requester.getId(), addressee.getId())
+                || friendshipRepo.existsByRequester_IdAndAddressee_Id(addressee.getId(), requester.getId());
+
+        if (exists) {
+            return new ApiResponse("request already exists", null);
+        }
+
+        friendshipRepo.save(new Friendship(requester, addressee));
+        return new ApiResponse("request successfully created", null);
     }
+
+
 
     @GetMapping("/friend-requests/incoming")
     public ApiResponseWrapper<List<FriendshipDTO>> incoming(@RequestParam String username) {
@@ -66,7 +78,6 @@ public class FriendshipController {
 
 
         List<Friendship> requests = friendshipRepo.findByAddressee_IdAndStatus(me.getId(), FriendshipStatus.PENDING);
-        // або твій findRequestsToMe(me.getId())
 
 
         List<FriendshipDTO> dto = requests.stream()
