@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import security.JwtUtil;
+import java.security.Principal;
 
 import java.util.Map;
 
@@ -24,10 +26,8 @@ public class RegistrationController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-
-
-   // @Autowired
-    //private JwtUtil jwtUtil;
+    @Autowired
+    private JwtUtil jwtUtil;
 
 
     @PostMapping("/register")
@@ -47,9 +47,9 @@ public class RegistrationController {
 
         userRepo.save(user);
 
-        //String token = jwtUtil.generateToken(username);
+        String token = jwtUtil.generateToken(username);
 
-        return new ApiResponse("Registration successful. Please validate your email.", "token");
+        return new ApiResponse("Registration successful. Please validate your email.", token);
     }
 
     @PostMapping("/login")
@@ -60,7 +60,8 @@ public class RegistrationController {
 
         model.User user =userRepo.findByUsername(username);
         if (user != null && passwordEncoder.matches(password, user.getPassword())) {            //String token = jwtUtil.generateToken(username);
-            return new ApiResponse("Login succesfull","token");
+            String token = jwtUtil.generateToken(username);
+            return new ApiResponse("Login succesfull",token);
         }
         return new ApiResponse("invalid email or password", null);
     }

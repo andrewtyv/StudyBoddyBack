@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import repos.FriendshipRepo;
 import repos.UserRepo;
 
+import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
@@ -40,8 +41,8 @@ public class FriendshipController {
 
 
     @PostMapping("/make_request")
-    public ApiResponse makeRequest(@RequestBody Map<String, String> request) {
-        String requesterUsername = request.get("requester_username").trim();
+    public ApiResponse makeRequest(Principal principal, @RequestBody Map<String, String> request) {
+        String requesterUsername = principal.getName();
         String addresseeUsername = request.get("addressee_username").trim();
 
         System.out.println(requesterUsername + "   requester       " + addresseeUsername);
@@ -71,8 +72,8 @@ public class FriendshipController {
 
 
     @GetMapping("/friend-requests/incoming")
-    public ApiResponseWrapper<List<FriendshipDTO>> incoming(@RequestParam String username) {
-        User me = userRepo.findByUsername(username);
+    public ApiResponseWrapper<List<FriendshipDTO>> incoming(Principal principal) {
+        User me = userRepo.findByUsername(principal.getName());
 
         if (me==null) {
             return ApiResponseWrapper.error("null user");
@@ -95,8 +96,8 @@ public class FriendshipController {
     }
 
     @GetMapping("/friend-requests/outgoing")
-    public ApiResponseWrapper<List<FriendshipDTO>> outgoing(@RequestParam String username){
-        User me = userRepo.findByUsername(username);
+    public ApiResponseWrapper<List<FriendshipDTO>> outgoing(Principal principal){
+        User me = userRepo.findByUsername(principal.getName());
 
         if (me == null) {
             return ApiResponseWrapper.error("null user");
@@ -115,10 +116,10 @@ public class FriendshipController {
     }
 
     @PutMapping("/friend-requests/accept")
-    public ApiResponse acceptFriendship(@RequestBody Map<String, String> api){
+    public ApiResponse acceptFriendship(Principal principal, @RequestBody Map<String, String> api){
 
 
-        Friendship friendship =  getFriendship(api);
+        Friendship friendship =  getFriendship(principal, api);
 
         if (friendship== null) {
             return new ApiResponse("this friedship never existed",null);
@@ -130,20 +131,20 @@ public class FriendshipController {
 
 
     @PutMapping("/friend-requests/reject")
-    public ApiResponse rejectFriendship(@RequestBody Map<String,String> api){
+    public ApiResponse rejectFriendship(Principal principal, @RequestBody Map<String,String> api){
 
-        Friendship friendship = getFriendship(api);
+        Friendship friendship = getFriendship(principal, api);
         if (friendship == null) {
             return new ApiResponse("this friendship neber existed", null);
         }
         friendship.setStatus(FriendshipStatus.REJECTED);
-
+        friendshipRepo.save(friendship);
         return new ApiResponse("friendship rejected", null);
     }
 
-    private Friendship getFriendship(Map<String,String> api){
+    private Friendship getFriendship(Principal principal,Map<String,String> api){
         String requesterUsername = api.get("requester_username");
-        String addresseeUsername = api.get("addressee_username");
+        String addresseeUsername = principal.getName();
 
         if (requesterUsername == null || addresseeUsername == null) return null;
 
