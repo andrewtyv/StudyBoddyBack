@@ -142,6 +142,36 @@ public class FriendshipController {
         return new ApiResponse("friendship rejected", null);
     }
 
+    @GetMapping("/friends")
+    public ApiResponseWrapper<List<FriendshipDTO>> friendship(Principal principal){
+        String username = principal.getName();
+        User user = userRepo.findByUsername(username);
+        List<Friendship> friendships =
+                friendshipRepo.findByStatusAndRequester_IdOrStatusAndAddressee_Id(
+                        FriendshipStatus.ACCEPTED, user.getId(),
+                        FriendshipStatus.ACCEPTED, user.getId()
+                );
+
+        List<FriendshipDTO> dto = friendships.stream()
+                .map(fr -> {
+                    String friendUsername =
+                            fr.getRequester().getId().equals(user.getId())
+                                    ? fr.getAddressee().getUsername()
+                                    : fr.getRequester().getUsername();
+
+                    return new FriendshipDTO(
+                            fr.getId(),
+                            friendUsername,
+                            fr.getStatus().toString(),
+                            fr.getFriendshipSentAt()
+                    );
+                })
+                .toList();
+
+        return ApiResponseWrapper.ok(dto);
+
+    }
+
     private Friendship getFriendship(Principal principal,Map<String,String> api){
         String requesterUsername = api.get("requester_username");
         String addresseeUsername = principal.getName();
@@ -157,4 +187,8 @@ public class FriendshipController {
         Friendship friendship =  friendshipRepo.findByRequester_IdAndAddressee_Id(requester.getId(), addressee.getId());
         return friendship;
     }
+
+
+
+
 }

@@ -19,4 +19,8 @@ public interface FriendshipRepo extends JpaRepository<Friendship, Long> {
 
     List<Friendship> findByRequester_IdAndStatus(Long id, FriendshipStatus status);
 
+    List<Friendship> findByStatusAndRequester_IdOrStatusAndAddressee_Id(
+            FriendshipStatus status1, Long requesterId,
+            FriendshipStatus status2, Long addresseeId
+    );
 }
