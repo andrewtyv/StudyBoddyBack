@@ -36,7 +36,7 @@ public class RegistrationController {
 
         String username = request.get("username");
         String email = request.get("email");
-        String password = request.get("password");
+        String password = request.get("password").trim();
 
 
         if (userRepo.existsByEmail(email) || userRepo.existsByUsername(username)) {
@@ -55,15 +55,14 @@ public class RegistrationController {
     @PostMapping("/login")
     public ApiResponse login(@RequestBody Map<String, String> request) {
         String username = request.get("username");
-        String password = request.get("password");
-        String encodedPassword = passwordEncoder.encode(password);
+        String password = request.get("password").trim();
 
         model.User user =userRepo.findByUsername(username);
         if (user != null && passwordEncoder.matches(password, user.getPassword())) {            //String token = jwtUtil.generateToken(username);
             String token = jwtUtil.generateToken(username);
             return new ApiResponse("Login succesfull",token);
         }
-        return new ApiResponse("invalid email or password", null);
+        return new ApiResponse("invalid login or password", null);
     }
 
 }

@@ -144,7 +144,14 @@ public class FriendshipController {
 
     @GetMapping("/friends")
     public ApiResponseWrapper<List<FriendshipDTO>> friendship(Principal principal){
+        System.out.println("\nfriends\n");
         String username = principal.getName();
+
+        if (username == null) {
+            return ApiResponseWrapper.error("empty username");
+        }
+
+
         User user = userRepo.findByUsername(username);
         List<Friendship> friendships =
                 friendshipRepo.findByStatusAndRequester_IdOrStatusAndAddressee_Id(
