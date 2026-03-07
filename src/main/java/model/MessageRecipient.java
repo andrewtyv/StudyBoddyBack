@@ -37,6 +37,7 @@ public class MessageRecipient {
         this.recipient =recipient;
         this.message=message;
     }
+
     public Message getMessage(){
         return this.message;
     }

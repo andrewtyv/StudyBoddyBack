@@ -3,6 +3,8 @@ package controllers;
 import DTO.*;
 import model.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 import repos.*;
 
@@ -26,6 +28,9 @@ public class RoomController {
 
     @Autowired
     UserRepo userRepo;
+
+    @Autowired
+    SimpMessagingTemplate messagingTemplate;
 
 
 
@@ -146,8 +151,60 @@ public class RoomController {
         }
 
         return ApiResponseWrapper.ok(dto);
-
-
     }
 
+
+
+    /*
+        roomId: ""
+        content: ""
+        messageType: ""
+     */
+    @MessageMapping("send-message")
+    public void sendMessage(Principal principal, Map<String,String> api){
+        User me = userRepo.findByUsername(principal.getName());
+
+        if (me == null) {
+            return;
+        }
+        String content = api.get("content");
+        Long id = Long.parseLong(api.get("roomId"));
+        Optional<Room> room = roomRepo.findById(id);
+        MessageType messageType = MessageType.valueOf(api.get("messageType")) ;
+
+
+        if(content.isBlank() || content.isEmpty()) {
+            System.out.println("here1");
+            return;
+        }
+
+        if (!roomMemberRepo.existsByRoom_IdAndUser_Id(id, me.getId())) {
+            System.out.println("here2");
+            return;
+        }
+        Message message = new Message(messageType, room.get(), me,content );
+        messageRepo.save(message);
+
+        List<RoomMember> members = roomMemberRepo.findByRoom_Id(room.get().getId());
+        List<MessageRecipient> recipients = new ArrayList<>();
+
+        for (RoomMember member : members) {
+            if (!member.getUser().getId().equals(me.getId())) {
+                recipients.add(new MessageRecipient(member.getUser() , message));
+            }
+        }
+
+        messageRecipientRepo.saveAll(recipients);
+
+        MessageWsDTO dto = new MessageWsDTO(
+                message.getId(),
+                room.get().getId(),
+                me.getUsername(),
+                message.getContent(),
+                message.getMessageType(),
+                message.getCreatedAt()
+        );
+
+        messagingTemplate.convertAndSend("/topic/rooms/" + room.get().getId(), dto);
+    }
 }

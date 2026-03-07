@@ -4,6 +4,8 @@ package model;
 import jakarta.persistence.*;
 import org.springframework.data.repository.cdi.Eager;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "message")
 public class Message {
@@ -62,4 +64,11 @@ public class Message {
         return this.room;
     }
 
+    public Long getId() {
+        return this.id;
+    }
+
+    public Instant getCreatedAt() {
+        return this.createdAt;
+    }
 }
