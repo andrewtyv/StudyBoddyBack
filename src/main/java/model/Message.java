@@ -58,5 +58,8 @@ public class Message {
     public MessageType getMessageType(){
         return this.messageType;
     }
+    public Room getRoom(){
+        return this.room;
+    }
 
 }

@@ -35,4 +35,21 @@ public class Room {
         this.directKey=directKey;
     }
 
+    public void setRoomType(RoomType roomType){
+        this.roomType = roomType;
+    }
+
+    public Long getId(){
+        return  this.id;
+    }
+    public RoomType getRoomType(){
+        return this.roomType;
+    }
+    public String getDirectKey(){
+        return this.directKey;
+    }
+
+    public Set<RoomMember> getMembers() {
+        return this.members;
+    }
 }

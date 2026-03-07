@@ -39,4 +39,11 @@ public class RoomMember {
         this.role =role;
     }
 
+    public Room getRoom(){
+        return this.room;
+    }
+
+    public User getUser() {
+        return this.user;
+    }
 }
