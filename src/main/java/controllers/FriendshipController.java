@@ -17,6 +17,13 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Controller responsible for friendship management.
+ *
+ * <p>This controller provides endpoints for sending friendship requests,
+ * viewing incoming and outgoing pending requests, accepting or rejecting
+ * requests, and retrieving the list of accepted friends of the authenticated user.</p>
+ */
 @RestController
 @RequestMapping("/user")
 public class FriendshipController {
@@ -39,7 +46,19 @@ public class FriendshipController {
     }
     */
 
-
+    /**
+     * Creates a new friendship request from the authenticated user to another user.
+     *
+     * <p>The authenticated user is obtained from the {@link Principal} object.
+     * The username of the target user is read from the request body under
+     * {@code addressee_username}. The request is rejected if one of the users
+     * does not exist, if the user tries to send a request to themselves,
+     * or if a friendship request already exists between the two users.</p>
+     *
+     * @param principal authenticated user
+     * @param request map containing the target username under {@code addressee_username}
+     * @return an {@link ApiResponse} containing the result of the operation
+     */
     @PostMapping("/make_request")
     public ApiResponse makeRequest(Principal principal, @RequestBody Map<String, String> request) {
         String requesterUsername = principal.getName();
@@ -70,6 +89,16 @@ public class FriendshipController {
     }
 
 
+    /**
+     * Returns all incoming pending friendship requests for the authenticated user.
+     *
+     * <p>This endpoint finds all friendship requests where the authenticated user
+     * is the addressee and the request status is {@code PENDING}. The result
+     * is converted to a list of {@link FriendshipDTO} objects.</p>
+     *
+     * @param principal authenticated user
+     * @return an {@link ApiResponseWrapper} containing the list of incoming friendship requests
+     */
 
     @GetMapping("/friend-requests/incoming")
     public ApiResponseWrapper<List<FriendshipDTO>> incoming(Principal principal) {
@@ -94,7 +123,16 @@ public class FriendshipController {
 
         return ApiResponseWrapper.ok(dto);
     }
-
+    /**
+     * Returns all outgoing pending friendship requests created by the authenticated user.
+     *
+     * <p>This endpoint finds all friendship requests where the authenticated user
+     * is the requester and the request status is {@code PENDING}. The result
+     * is converted to a list of {@link FriendshipDTO} objects.</p>
+     *
+     * @param principal authenticated user
+     * @return an {@link ApiResponseWrapper} containing the list of outgoing friendship requests
+     */
     @GetMapping("/friend-requests/outgoing")
     public ApiResponseWrapper<List<FriendshipDTO>> outgoing(Principal principal){
         User me = userRepo.findByUsername(principal.getName());
@@ -114,7 +152,17 @@ public class FriendshipController {
         return ApiResponseWrapper.ok(dto);
 
     }
-
+    /**
+     * Accepts an incoming friendship request for the authenticated user.
+     *
+     * <p>The requester username is read from the request body under
+     * {@code requester_username}. If the corresponding friendship request exists,
+     * its status is changed to {@code ACCEPTED}.</p>
+     *
+     * @param principal authenticated user
+     * @param api map containing the requester username under {@code requester_username}
+     * @return an {@link ApiResponse} containing the result of the operation
+     */
     @PutMapping("/friend-requests/accept")
     public ApiResponse acceptFriendship(Principal principal, @RequestBody Map<String, String> api){
 
@@ -129,6 +177,17 @@ public class FriendshipController {
         return new ApiResponse("friendship accepted", null);
     }
 
+    /**
+     * Rejects an incoming friendship request for the authenticated user.
+     *
+     * <p>The requester username is read from the request body under
+     * {@code requester_username}. If the corresponding friendship request exists,
+     * its status is changed to {@code REJECTED}.</p>
+     *
+     * @param principal authenticated user
+     * @param api map containing the requester username under {@code requester_username}
+     * @return an {@link ApiResponse} containing the result of the operation
+     */
 
     @PutMapping("/friend-requests/reject")
     public ApiResponse rejectFriendship(Principal principal, @RequestBody Map<String,String> api){
@@ -141,7 +200,17 @@ public class FriendshipController {
         friendshipRepo.save(friendship);
         return new ApiResponse("friendship rejected", null);
     }
-
+    /**
+     * Returns all accepted friendships of the authenticated user.
+     *
+     * <p>This endpoint finds all friendship relationships with status
+     * {@code ACCEPTED} where the authenticated user is either the requester
+     * or the addressee. The result is converted to a list of
+     * {@link FriendshipDTO} objects containing the username of the other user.</p>
+     *
+     * @param principal authenticated user
+     * @return an {@link ApiResponseWrapper} containing the list of accepted friendships
+     */
     @GetMapping("/friends")
     public ApiResponseWrapper<List<FriendshipDTO>> friendship(Principal principal){
         System.out.println("\nfriends\n");
@@ -178,7 +247,17 @@ public class FriendshipController {
         return ApiResponseWrapper.ok(dto);
 
     }
-
+    /**
+     * Finds a friendship request between the provided requester and the authenticated user.
+     *
+     * <p>This helper method is used when accepting or rejecting friendship requests.
+     * The requester username is read from the request body, while the addressee
+     * username is obtained from the authenticated user.</p>
+     *
+     * @param principal authenticated user
+     * @param api map containing the requester username under {@code requester_username}
+     * @return the matching {@link Friendship} if it exists; otherwise {@code null}
+     */
     private Friendship getFriendship(Principal principal,Map<String,String> api){
         String requesterUsername = api.get("requester_username");
         String addresseeUsername = principal.getName();

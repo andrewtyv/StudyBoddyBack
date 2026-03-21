@@ -11,6 +11,14 @@ import repos.*;
 import java.security.Principal;
 import java.util.*;
 
+
+/**
+ * Controller responsible for room and messaging operations.
+ *
+ * <p>This controller provides endpoints for creating direct rooms,
+ * retrieving rooms of the authenticated user, marking messages as read,
+ * loading messages from a room, and sending messages through WebSocket.</p>
+ */
 @RestController
 @RequestMapping("/room")
 public class RoomController {
@@ -33,6 +41,19 @@ public class RoomController {
     SimpMessagingTemplate messagingTemplate;
 
 
+    /**
+     * Creates a direct room between the authenticated user and another user.
+     *
+     * <p>The target user is provided in the request body under {@code username}.
+     * If both users exist and are different, a unique direct key is generated.
+     * If a direct room between the same two users already exists, the existing
+     * room is returned instead of creating a new one.</p>
+     *
+     * @param principal authenticated user
+     * @param body map containing the target username under {@code username}
+     * @return an {@link ApiResponseWrapper} containing information about the created
+     *         or already existing direct room
+     */
 
     @PostMapping("/create-direct")
     public ApiResponseWrapper<RoomDTO> createRoom (Principal principal, @RequestBody Map<String,String> body){
@@ -72,7 +93,16 @@ public class RoomController {
         return ApiResponseWrapper.ok(new RoomDTO(room.getId(), room.getRoomType(),room.getDirectKey(), "", Integer.valueOf(0)));
 
     }
-
+    /**
+     * Returns all direct rooms of the authenticated user.
+     *
+     * <p>This endpoint retrieves all room memberships of the authenticated user,
+     * calculates the number of unread messages in each room, and returns only
+     * rooms of type {@code DIRECT}.</p>
+     *
+     * @param principal authenticated user
+     * @return an {@link ApiResponseWrapper} containing the list of direct rooms
+     */
     @GetMapping("/direct-rooms")
     public ApiResponseWrapper<List<RoomDTO>> getAllRooms(Principal principal) {
 
@@ -103,7 +133,17 @@ public class RoomController {
 
         return ApiResponseWrapper.ok(dto);
     }
-
+    /**
+     * Marks all unread messages in the specified room as read for the authenticated user.
+     *
+     * <p>The room identifier is provided in the request body under {@code id}.
+     * The operation is performed only if the room exists and the authenticated
+     * user is a member of the room.</p>
+     *
+     * @param principal authenticated user
+     * @param api map containing the room identifier under {@code id}
+     * @return an {@link ApiResponseWrapper} containing the result of the operation
+     */
     @PostMapping("/read")
     public ApiResponseWrapper<String> ReadMessages(Principal principal, @RequestBody Map<String,String> api){
         Long roomId = Long.parseLong(api.get("id"));
@@ -127,7 +167,17 @@ public class RoomController {
         }
         return ApiResponseWrapper.ok("read");
     }
-
+    /**
+     * Returns all messages from the specified room for the authenticated user.
+     *
+     * <p>The room identifier is provided in the request body under {@code id}.
+     * The room must exist and the authenticated user must be a member of it.
+     * Messages are returned in ascending order by creation time.</p>
+     *
+     * @param principal authenticated user
+     * @param api map containing the room identifier under {@code id}
+     * @return an {@link ApiResponseWrapper} containing the list of room messages
+     */
     @GetMapping("/enter")
     public ApiResponseWrapper<List<MessageDTO>> enterRoom(Principal principal, @RequestBody Map<String,String> api){
 
@@ -154,7 +204,18 @@ public class RoomController {
     }
 
 
-
+    /**
+     * Sends a message to a room through WebSocket.
+     *
+     * <p>This handler reads the room identifier, message content, and message type
+     * from the incoming payload. It verifies that the authenticated user exists,
+     * that the message content is not empty, and that the user is a member of the room.
+     * The message is then saved, unread recipient records are created for other members,
+     * and the message is broadcast to subscribers of the room topic.</p>
+     *
+     * @param principal authenticated user
+     * @param api map containing {@code roomId}, {@code content}, and {@code messageType}
+     */
     /*
         roomId: ""
         content: ""
