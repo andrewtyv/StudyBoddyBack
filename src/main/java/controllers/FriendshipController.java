@@ -248,6 +248,52 @@ public class FriendshipController {
 
     }
     /**
+     * Removes an accepted friendship between the authenticated user and another user.
+     *
+     * <p>The authenticated user is obtained from the {@link Principal} object,
+     * while the username of the friend to remove is provided in the request body
+     * under {@code friend_username}. The method searches for an accepted friendship
+     * in both directions and deletes it if found.</p>
+     *
+     * @param principal authenticated user
+     * @param api map containing the friend's username under {@code friend_username}
+     * @return an {@link ApiResponseWrapper} containing the result of the operation
+     */
+    @DeleteMapping("/friends/remove")
+    public ApiResponseWrapper<String> removeFriend(Principal principal, @RequestBody Map<String, String> api) {
+        String myUsername = principal.getName();
+        String friendUsername = api.get("friend_username");
+
+        if (friendUsername == null || friendUsername.trim().isEmpty()) {
+            return ApiResponseWrapper.error("friend username is required");
+        }
+
+        User me = userRepo.findByUsername(myUsername);
+        User friend = userRepo.findByUsername(friendUsername.trim());
+
+        if (me == null || friend == null) {
+            return ApiResponseWrapper.error("user not found");
+        }
+
+        Friendship friendship =
+                friendshipRepo.findByRequester_IdAndAddressee_IdOrRequester_IdAndAddressee_Id(
+                        me.getId(), friend.getId(),
+                        friend.getId(), me.getId()
+                );
+
+        if (friendship == null) {
+            return ApiResponseWrapper.error("friendship not found");
+        }
+
+        if (friendship.getStatus() != FriendshipStatus.ACCEPTED) {
+            return ApiResponseWrapper.error("users are not friends");
+        }
+
+        friendshipRepo.delete(friendship);
+
+        return ApiResponseWrapper.ok("friend removed successfully");
+    }
+    /**
      * Finds a friendship request between the provided requester and the authenticated user.
      *
      * <p>This helper method is used when accepting or rejecting friendship requests.
