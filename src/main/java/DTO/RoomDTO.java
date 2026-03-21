@@ -36,7 +36,7 @@ public class RoomDTO {
     public String getDirectKey(){
         return  this.directKey;
     }
-    public  Long id (){
+    public  Long getId (){
         return this.id;
     }
     public RoomType getRoomType(){

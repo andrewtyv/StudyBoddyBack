@@ -36,7 +36,7 @@ public class RoomMember {
     public RoomMember (Room room, User user, RoomMemberRole roomMemberRole){
         this.room = room;
         this.user = user;
-        this.role =role;
+        this.role =roomMemberRole;
     }
 
     public Room getRoom(){

@@ -57,7 +57,7 @@ public class RoomController {
 
     @PostMapping("/create-direct")
     public ApiResponseWrapper<RoomDTO> createRoom (Principal principal, @RequestBody Map<String,String> body){
-
+        System.out.println("here direct");
         String username = body.get("username");
         User friend = userRepo.findByUsername(username);
         User me = userRepo.findByUsername(principal.getName());
@@ -75,6 +75,7 @@ public class RoomController {
 
 
         if (roomRepo.findByDirectKey(directKey)!= null) {
+            System.out.println("\n"+directKey.toString() + "\n");
             return ApiResponseWrapper.ok(new RoomDTO(roomRepo.findByDirectKey(directKey).getId(),"the room already created"));
         }
 
@@ -90,6 +91,7 @@ public class RoomController {
         roomMemberRepo.save(roomMemberMe);
         roomMemberRepo.save(roomMemberFriend);
 
+        System.out.println("succesfully created");
         return ApiResponseWrapper.ok(new RoomDTO(room.getId(), room.getRoomType(),room.getDirectKey(), "", Integer.valueOf(0)));
 
     }
@@ -178,7 +180,7 @@ public class RoomController {
      * @param api map containing the room identifier under {@code id}
      * @return an {@link ApiResponseWrapper} containing the list of room messages
      */
-    @GetMapping("/enter")
+    @PostMapping("/enter")
     public ApiResponseWrapper<List<MessageDTO>> enterRoom(Principal principal, @RequestBody Map<String,String> api){
 
         User me = userRepo.findByUsername(principal.getName());
