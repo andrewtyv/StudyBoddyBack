@@ -27,12 +27,19 @@ public class Room {
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
+    @Column(nullable = true)
+    private String roomName;
+
     public Room (){
 
     }
     public Room (RoomType roomType, String directKey){
         this.roomType= roomType;
         this.directKey=directKey;
+    }
+
+    public String getRoomName(){
+        return this.roomName;
     }
 
     public void setRoomType(RoomType roomType){

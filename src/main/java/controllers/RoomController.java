@@ -125,12 +125,24 @@ public class RoomController {
 
             long unread = messageRecipientRepo
                     .countByRecipient_IdAndReadFalseAndMessage_Room_Id(me.getId(), room.getId());
+            String title ="";
+            if (room.getRoomType() == RoomType.DIRECT) {
+                Set<RoomMember> members = room.getMembers();
+                for (RoomMember member : members) {
+                    if (!member.getUser().getUsername().equals(principal.getName())) {
+                        title = member.getUser().getUsername();
+                    }
+                }
+            }
+            if (room.getRoomType() == RoomType.GROUP) {
+                title = room.getRoomName();
+            }
 
                 dto.add(new RoomDTO(
                         room.getId(),
                         room.getRoomType(),
                         room.getDirectKey(),
-                        "",
+                        title,
                         (int) unread
                 ));
             }
