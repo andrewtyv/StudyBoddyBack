@@ -95,10 +95,27 @@ public class RoomController {
         return ApiResponseWrapper.ok(new RoomDTO(room.getId(), room.getRoomType(),room.getDirectKey(), "", Integer.valueOf(0)));
 
     }
-//    @GetMapping("/group-room")
-//    public ApiResponseWrapper<List<RoomDTO>> createGroupRoom(Principal principal, @RequestBody Map<String,String> body) {
-//
-//    }
+    @PostMapping("/group-room")
+    public ApiResponseWrapper<RoomDTO> createGroupRoom(Principal principal, @RequestBody Map<String,String> body) {
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("user not found");
+        }
+
+        String groupName = body.get("name");
+        if (groupName == null || groupName.trim().isBlank()) {
+            return ApiResponseWrapper.error("group name is required");
+        }
+
+        Room room = new Room(RoomType.GROUP, null);
+        roomRepo.save(room);
+
+        RoomMember owner = new RoomMember(room, me, RoomMemberRole.OWNER);
+        roomMemberRepo.save(owner);
+
+        return ApiResponseWrapper.ok(new RoomDTO(room.getId(), RoomType.GROUP, null, groupName.trim(), 0));
+
+    }
     /**
      * Returns all direct rooms of the authenticated user.
      *
@@ -125,17 +142,30 @@ public class RoomController {
 
             long unread = messageRecipientRepo
                     .countByRecipient_IdAndReadFalseAndMessage_Room_Id(me.getId(), room.getId());
-
-                dto.add(new RoomDTO(
-                        room.getId(),
-                        room.getRoomType(),
-                        room.getDirectKey(),
-                        "",
-                        (int) unread
-                ));
+            String title ="";
+            if (room.getRoomType() == RoomType.DIRECT) {
+                Set<RoomMember> members = room.getMembers();
+                for (RoomMember member : members) {
+                    if (!member.getUser().getUsername().equals(principal.getName())) {
+                        title = member.getUser().getUsername();
+                    }
+                }
             }
+            if (room.getRoomType() == RoomType.GROUP) {
+                title = room.getRoomName();
+            }
+
+            dto.add(new RoomDTO(
+                    room.getId(),
+                    room.getRoomType(),
+                    room.getDirectKey(),
+                    title,
+                    (int) unread
+            ));
+        }
         return ApiResponseWrapper.ok(dto);
     }
+
 
     /**
      * Marks all unread messages in the specified room as read for the authenticated user.

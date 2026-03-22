@@ -42,6 +42,10 @@ public class Room {
         return this.roomName;
     }
 
+    public void setRoomName(String roomName) {
+        this.roomName = roomName;
+    }
+
     public void setRoomType(RoomType roomType){
         this.roomType = roomType;
     }
