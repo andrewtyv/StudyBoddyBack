@@ -108,6 +108,7 @@ public class RoomController {
         }
 
         Room room = new Room(RoomType.GROUP, null);
+        room.setRoomName(groupName.trim());
         roomRepo.save(room);
 
         RoomMember owner = new RoomMember(room, me, RoomMemberRole.OWNER);
