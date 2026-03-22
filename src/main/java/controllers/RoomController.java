@@ -117,6 +117,76 @@ public class RoomController {
         return ApiResponseWrapper.ok(new RoomDTO(room.getId(), RoomType.GROUP, null, groupName.trim(), 0));
 
     }
+
+    @PostMapping("/add-user-to-group")
+    public ApiResponseWrapper<RoomDTO> addUserToGroup(Principal principal, @RequestBody Map<String, String> api) {
+        User me = userRepo.findByUsername(principal.getName());
+
+        if (me == null) {
+            return ApiResponseWrapper.error("user not found");
+        }
+
+        String roomIdStr = api.get("id");
+        String username = api.get("username");
+
+        if (roomIdStr == null || roomIdStr.trim().isBlank()) {
+            return ApiResponseWrapper.error("roomId is required");
+        }
+
+        if (username == null || username.trim().isBlank()) {
+            return ApiResponseWrapper.error("username is required");
+        }
+
+        Long roomId;
+        try {
+            roomId = Long.parseLong(roomIdStr);
+        } catch (Exception e) {
+            return ApiResponseWrapper.error("invalid roomId");
+        }
+
+        Optional<Room> roomOptional = roomRepo.findById(roomId);
+        if (!roomOptional.isPresent()) {
+            return ApiResponseWrapper.error("room not found");
+        }
+
+        Room room = roomOptional.get();
+
+        if (!room.getRoomType().equals(RoomType.GROUP)) {
+            return ApiResponseWrapper.error("this room is not a group");
+        }
+
+        RoomMember myMembership = roomMemberRepo.findByRoom_IdAndUser_Id(roomId, me.getId());
+
+        if (myMembership == null) {
+            return ApiResponseWrapper.error("you are not a member of this group");
+        }
+
+        if (!myMembership.getRole().equals(RoomMemberRole.OWNER)) {
+            return ApiResponseWrapper.error("only owner can add users");
+        }
+
+        User target = userRepo.findByUsername(username.trim());
+        if (target == null) {
+            return ApiResponseWrapper.error("target user not found");
+        }
+
+        if (roomMemberRepo.existsByRoom_IdAndUser_Id(roomId, target.getId())) {
+            return ApiResponseWrapper.error("user already in group");
+        }
+
+        RoomMember newMember = new RoomMember(room, target, RoomMemberRole.MEMBER);
+        roomMemberRepo.save(newMember);
+
+        return ApiResponseWrapper.ok(
+                new RoomDTO(
+                        room.getId(),
+                        room.getRoomType(),
+                        null,
+                        room.getRoomName(),
+                        0
+                )
+        );
+    }
     /**
      * Returns all direct rooms of the authenticated user.
      *
@@ -237,7 +307,6 @@ public class RoomController {
 
         return ApiResponseWrapper.ok(dto);
     }
-
 
     /**
      * Sends a message to a room through WebSocket.

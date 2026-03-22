@@ -46,4 +46,5 @@ public class RoomMember {
     public User getUser() {
         return this.user;
     }
+    public RoomMemberRole getRole() { return this.role;}
 }
