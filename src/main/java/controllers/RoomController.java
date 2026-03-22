@@ -95,6 +95,10 @@ public class RoomController {
         return ApiResponseWrapper.ok(new RoomDTO(room.getId(), room.getRoomType(),room.getDirectKey(), "", Integer.valueOf(0)));
 
     }
+//    @GetMapping("/group-room")
+//    public ApiResponseWrapper<List<RoomDTO>> createGroupRoom(Principal principal, @RequestBody Map<String,String> body) {
+//
+//    }
     /**
      * Returns all direct rooms of the authenticated user.
      *
@@ -105,7 +109,7 @@ public class RoomController {
      * @param principal authenticated user
      * @return an {@link ApiResponseWrapper} containing the list of direct rooms
      */
-    @GetMapping("/direct-rooms")
+    @GetMapping("/all-rooms")
     public ApiResponseWrapper<List<RoomDTO>> getAllRooms(Principal principal) {
 
         User me = userRepo.findByUsername(principal.getName());
@@ -122,7 +126,6 @@ public class RoomController {
             long unread = messageRecipientRepo
                     .countByRecipient_IdAndReadFalseAndMessage_Room_Id(me.getId(), room.getId());
 
-            if (room.getRoomType().equals(RoomType.DIRECT)) {
                 dto.add(new RoomDTO(
                         room.getId(),
                         room.getRoomType(),
@@ -131,10 +134,9 @@ public class RoomController {
                         (int) unread
                 ));
             }
-        }
-
         return ApiResponseWrapper.ok(dto);
     }
+
     /**
      * Marks all unread messages in the specified room as read for the authenticated user.
      *
