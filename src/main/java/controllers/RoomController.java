@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.*;
 import repos.*;
 
 import java.security.Principal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 
@@ -36,6 +38,9 @@ public class RoomController {
 
     @Autowired
     UserRepo userRepo;
+
+    @Autowired
+    RoomInviteRepo roomInviteRepo;
 
     @Autowired
     SimpMessagingTemplate messagingTemplate;
@@ -118,85 +123,130 @@ public class RoomController {
 
     }
 
-    @PostMapping("/add-user-to-group")
-    public ApiResponseWrapper<RoomDTO> addUserToGroup(Principal principal, @RequestBody Map<String, String> api) {
+    @PostMapping("/create-invite")
+    public ApiResponseWrapper<String> create_invite(Principal principal, @RequestBody Map<String,String> api){
         User me = userRepo.findByUsername(principal.getName());
-
-        if (me == null) {
-            return ApiResponseWrapper.error("user not found");
+        User friend = userRepo.findByUsername(api.get("username").trim());
+        Room room = roomRepo.findById(Long.parseLong(api.get("id"))).get();
+        if (friend == null || me ==null) {
+            return ApiResponseWrapper.error("something is null");
+        }
+        if (me.getId().equals(friend.getId())) {
+            return ApiResponseWrapper.error("You cannot invite yourself");
         }
 
-        String roomIdStr = api.get("id");
-        String username = api.get("username");
-
-        if (roomIdStr == null || roomIdStr.trim().isBlank()) {
-            return ApiResponseWrapper.error("roomId is required");
+        if (room.getRoomType() == RoomType.DIRECT) {
+            return ApiResponseWrapper.error("Cannot invite users to direct room");
         }
 
-        if (username == null || username.trim().isBlank()) {
-            return ApiResponseWrapper.error("username is required");
+        if (roomInviteRepo.existsByInviteeIdAndRoomIdAndStatus(friend.getId(), room.getId(), RoomInviteStatus.PENDING)) {
+            return ApiResponseWrapper.error("Invite already exists");
+        }
+        if (!roomMemberRepo.existsByRoomIdAndUserId(room.getId(), me.getId())) {
+            return ApiResponseWrapper.error("You are not a member of this room");
         }
 
-        Long roomId;
-        try {
-            roomId = Long.parseLong(roomIdStr);
-        } catch (Exception e) {
-            return ApiResponseWrapper.error("invalid roomId");
+        if (roomMemberRepo.existsByRoomIdAndUserId(room.getId(), friend.getId())) {
+            return ApiResponseWrapper.error("User is already a member of this room");
+        }
+        RoomMember membership = roomMemberRepo.findByRoomIdAndUserId(room.getId(), me.getId());
+
+        if (membership == null) {
+            return ApiResponseWrapper.error("You are not a member of this room");
         }
 
-        Optional<Room> roomOptional = roomRepo.findById(roomId);
-        if (!roomOptional.isPresent()) {
-            return ApiResponseWrapper.error("room not found");
+        if (membership.getRole() != RoomMemberRole.OWNER &&
+                membership.getRole() != RoomMemberRole.ADMIN) {
+            return ApiResponseWrapper.error("You don't have permission to invite users");
         }
 
-        Room room = roomOptional.get();
 
-        if (!room.getRoomType().equals(RoomType.GROUP)) {
-            return ApiResponseWrapper.error("this room is not a group");
-        }
+        RoomInvite invite = new RoomInvite(room, me, friend);
+        roomInviteRepo.save(invite);
+        return ApiResponseWrapper.ok("invite created succesfully");
 
-        RoomMember myMembership = roomMemberRepo.findByRoom_IdAndUser_Id(roomId, me.getId());
-
-        if (myMembership == null) {
-            return ApiResponseWrapper.error("you are not a member of this group");
-        }
-
-        if (!myMembership.getRole().equals(RoomMemberRole.OWNER)) {
-            return ApiResponseWrapper.error("only owner can add users");
-        }
-
-        User target = userRepo.findByUsername(username.trim());
-        if (target == null) {
-            return ApiResponseWrapper.error("target user not found");
-        }
-
-        if (roomMemberRepo.existsByRoom_IdAndUser_Id(roomId, target.getId())) {
-            return ApiResponseWrapper.error("user already in group");
-        }
-
-        RoomMember newMember = new RoomMember(room, target, RoomMemberRole.MEMBER);
-        roomMemberRepo.save(newMember);
-
-        return ApiResponseWrapper.ok(
-                new RoomDTO(
-                        room.getId(),
-                        room.getRoomType(),
-                        null,
-                        room.getRoomName(),
-                        0
-                )
-        );
     }
-    /**
-     * Returns all direct rooms of the authenticated user.
-     *
-     * <p>This endpoint retrieves all room memberships of the authenticated user,
-     * calculates the number of unread messages in each room, and returns only
-     * rooms of type {@code DIRECT}.</p>
-     *
-     * @param principal authenticated user
-     * @return an {@link ApiResponseWrapper} containing the list of direct rooms
-     */
+    @GetMapping("/my-invites")
+    public ApiResponseWrapper<List<InviteDTO>> myInvites(Principal principal) {
+
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("User not found");
+        }
+
+        List<RoomInvite> invites = roomInviteRepo
+                .findAllByInviteeIdAndStatus(me.getId(), RoomInviteStatus.PENDING);
+
+        List<InviteDTO> response = invites.stream()
+                .map(invite -> new InviteDTO(
+                        invite.getId(),
+                        invite.getRoom().getId(),
+                        invite.getRoom().getRoomName(),
+                        invite.getInviter().getUsername()
+                ))
+                .toList();
+
+        return ApiResponseWrapper.ok(response);
+    }
+
+    @PostMapping("/accept-invite")
+    public ApiResponseWrapper<String> accept(Principal principal, @RequestBody  Map<String,String> api){
+        User me = userRepo.findByUsername(principal.getName());
+        Long inviteId = Long.parseLong(api.get("inviteId"));
+        RoomInvite invite = roomInviteRepo.findById(inviteId).orElse(null);
+        if (!invite.getInvitee().getId().equals(me.getId())) {
+            return ApiResponseWrapper.error("This is not your invite");
+        }
+
+        if (invite.getStatus() != RoomInviteStatus.PENDING) {
+            return ApiResponseWrapper.error("Invite already processed");
+        }
+
+        if (roomMemberRepo.existsByRoomIdAndUserId(invite.getRoom().getId(), me.getId())) {
+            return ApiResponseWrapper.error("Already in room");
+        }
+        invite.accept();
+        roomInviteRepo.save(invite);
+
+        RoomMember member = new RoomMember(invite.getRoom(), me,RoomMemberRole.MEMBER);
+        roomMemberRepo.save(member);
+
+        return ApiResponseWrapper.ok("accepted");
+
+    }
+
+    @PostMapping("/decline-invite")
+    public ApiResponseWrapper<String> decline(Principal principal, @RequestBody  Map<String,String> api){
+        User me = userRepo.findByUsername(principal.getName());
+        Long inviteId = Long.parseLong(api.get("inviteId"));
+        RoomInvite invite = roomInviteRepo.findById(inviteId).orElse(null);
+        if (!invite.getInvitee().getId().equals(me.getId())) {
+            return ApiResponseWrapper.error("This is not your invite");
+        }
+
+        if (invite.getStatus() != RoomInviteStatus.PENDING) {
+            return ApiResponseWrapper.error("Invite already processed");
+        }
+
+        if (roomMemberRepo.existsByRoomIdAndUserId(invite.getRoom().getId(), me.getId())) {
+            return ApiResponseWrapper.error("Already in room");
+        }
+        invite.decline();
+        roomInviteRepo.save(invite);
+
+        return ApiResponseWrapper.ok("accepted");
+    }
+
+        /**
+         * Returns all direct rooms of the authenticated user.
+         *
+         * <p>This endpoint retrieves all room memberships of the authenticated user,
+         * calculates the number of unread messages in each room, and returns only
+         * rooms of type {@code DIRECT}.</p>
+         *
+         * @param principal authenticated user
+         * @return an {@link ApiResponseWrapper} containing the list of direct rooms
+         */
     @GetMapping("/all-rooms")
     public ApiResponseWrapper<List<RoomDTO>> getAllRooms(Principal principal) {
 
@@ -236,6 +286,8 @@ public class RoomController {
         }
         return ApiResponseWrapper.ok(dto);
     }
+
+
 
 
     /**
@@ -372,4 +424,7 @@ public class RoomController {
 
         messagingTemplate.convertAndSend("/topic/rooms/" + room.get().getId(), dto);
     }
+
+
+
 }

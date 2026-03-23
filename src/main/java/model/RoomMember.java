@@ -3,6 +3,8 @@ package model;
 
 import jakarta.persistence.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(
         name = "room_member",
@@ -38,6 +40,7 @@ public class RoomMember {
         this.user = user;
         this.role =roomMemberRole;
     }
+
 
     public Room getRoom(){
         return this.room;
