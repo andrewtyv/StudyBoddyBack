@@ -22,11 +22,7 @@ public class JwtUtil {
     private final long expirationMillis;
     private final String issuer;
 
-    /**
-     * jwt.secret може бути:
-     * 1) base64 (рекомендовано) -> тоді useBase64Secret=true
-     * 2) звичайний довгий текст (мін 32 символи) -> useBase64Secret=false
-     */
+
     public JwtUtil(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration-millis:3600000}") long expirationMillis,

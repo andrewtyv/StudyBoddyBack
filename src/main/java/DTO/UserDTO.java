@@ -17,6 +17,10 @@ public class UserDTO {
     public UserDTO() {
     }
 
+    public UserDTO(String username){
+        this.username = username;
+    }
+
     public UserDTO(String email, String username, String password) {
         this.email = email;
         this.username = username;

@@ -12,6 +12,7 @@ import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 /**
@@ -45,6 +46,9 @@ public class RoomController {
     @Autowired
     SimpMessagingTemplate messagingTemplate;
 
+    @Autowired
+    FriendshipRepo friendshipRepo;
+
 
     /**
      * Creates a direct room between the authenticated user and another user.
@@ -59,7 +63,6 @@ public class RoomController {
      * @return an {@link ApiResponseWrapper} containing information about the created
      *         or already existing direct room
      */
-
     @PostMapping("/create-direct")
     public ApiResponseWrapper<RoomDTO> createRoom (Principal principal, @RequestBody Map<String,String> body){
         System.out.println("here direct");
@@ -456,6 +459,107 @@ public class RoomController {
 
         return ApiResponseWrapper.ok(dto);
     }
+
+    @GetMapping("/friends/not-in/{room_id}")
+    public ApiResponseWrapper<List<UserDTO>> getFriendsNotInGroup(Principal principal, @PathVariable("room_id") Long roomId){
+        Room room = roomRepo.findById(roomId).orElse(null);
+        if (room == null) {
+            return ApiResponseWrapper.error("room doesn't exists");
+        }
+        User me = userRepo.findByUsername(principal.getName());
+        List<Friendship> friendships =
+                friendshipRepo.findByStatusAndRequester_IdOrStatusAndAddressee_Id(
+                        FriendshipStatus.ACCEPTED, me.getId(),
+                        FriendshipStatus.ACCEPTED, me.getId()
+                );
+        List<UserDTO> friends = friendships.stream().map(fr ->
+                new UserDTO((fr.getAddressee().getUsername().equals(me.getUsername()))? fr.getRequester().getUsername() :
+                        fr.getAddressee().getUsername() )).toList();
+
+
+        Set<String> memberUsernames = room.getMembers().stream()
+                .map(roomMember -> roomMember.getUser().getUsername())
+                .collect(Collectors.toSet());
+
+        List<UserDTO> result = friends.stream()
+                .filter(friend -> !memberUsernames.contains(friend.getUsername()))
+                .toList();
+
+        return ApiResponseWrapper.ok(result);
+
+    }
+    @PostMapping ("/invite-token/{room_id}")
+    public ApiResponseWrapper<String> generateToken(Principal principal, @PathVariable("room_id") Long roomId){
+        Room room = roomRepo.findById(roomId).orElse(null);
+        if (room == null) {
+            return ApiResponseWrapper.error("Room doesn't exists");
+        }
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("User not found");
+        }
+
+        boolean isMember = room.getMembers().stream()
+                .anyMatch(member -> member.getUser().getId().equals(me.getId()));
+
+        if (!isMember) {
+            return ApiResponseWrapper.error("You are not a member of this room");
+        }
+        RoomMember member = roomMemberRepo.findByRoomIdAndUserId(room.getId(), me.getId());
+
+        if (member.getRole() != RoomMemberRole.OWNER &&
+                member.getRole() != RoomMemberRole.ADMIN) {
+            return ApiResponseWrapper.error("You don't have permission to generate invite token");
+        }
+        String token = UUID.randomUUID().toString();
+
+        room.setInviteToken(token);
+        room.setInviteTokenExpiresAt(LocalDateTime.now().plusDays(1));
+        roomRepo.save(room);
+
+        String qrValue = "studybuddy://join-room?token=" + token;
+
+        return ApiResponseWrapper.ok(qrValue);
+
+    }
+    @PostMapping("/join-by-token")
+    public ApiResponseWrapper<String> joinByToken(Principal principal, @RequestBody Map<String,String> api){
+        String token = api.get("token");
+        if (token == null || token.isBlank() || token.isEmpty()){
+            return ApiResponseWrapper.error("null token");
+        }
+        User me = userRepo.findByUsername(principal.getName());
+
+        if (me == null) {
+            return ApiResponseWrapper.error("User not found");
+        }
+
+        Room room = roomRepo.findByInviteToken(token);
+        if (room == null) {
+            return ApiResponseWrapper.error("Invalid token");
+        }
+
+        if (room.getInviteTokenExpiresAt() == null ||
+                room.getInviteTokenExpiresAt().isBefore(LocalDateTime.now())) {
+            return ApiResponseWrapper.error("Token expired");
+        }
+
+        boolean alreadyMember = room.getMembers().stream()
+                .anyMatch(member -> member.getUser().getId().equals(me.getId()));
+
+        if (alreadyMember) {
+            return ApiResponseWrapper.error("You are already in this room");
+        }
+
+        RoomMember roomMember = new RoomMember(room, me, RoomMemberRole.MEMBER);
+
+        room.getMembers().add(roomMember);
+
+        roomRepo.save(room);
+
+        return ApiResponseWrapper.ok("Joined room successfully");
+    }
+
 
 
 }

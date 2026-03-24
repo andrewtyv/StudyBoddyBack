@@ -43,7 +43,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7).trim();
 
         try {
-            // валідація + дістаємо username з sub
             if (!jwtUtil.isTokenValid(token)) {
                 filterChain.doFilter(request, response);
                 return;
@@ -51,7 +50,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
             String username = jwtUtil.extractUsername(token);
 
-            // якщо вже є auth — не перезаписуємо
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 // мінімально: без ролей
                 var auth = new UsernamePasswordAuthenticationToken(
@@ -64,7 +62,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
 
         } catch (JwtException | IllegalArgumentException e) {
-            // токен кривий/підпис не той/exp минув — просто пропускаємо як неавторизованого
         }
 
         filterChain.doFilter(request, response);

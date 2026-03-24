@@ -3,6 +3,7 @@ package model;
 import jakarta.persistence.*;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Entity
@@ -37,10 +38,36 @@ public class Room {
         this.roomType= roomType;
         this.directKey=directKey;
     }
+    @Column(name = "invite_token", unique = true)
+    private String inviteToken;
+
+    @Column(name = "invite_token_expires_at")
+    private LocalDateTime inviteTokenExpiresAt;
 
     public String getRoomName(){
         return this.roomName;
     }
+
+    public void setInviteToken(String inviteToken) {
+        this.inviteToken = inviteToken;
+    }
+
+    public void setInviteTokenExpiresAt(LocalDateTime inviteTokenExpiresAt) {
+        this.inviteTokenExpiresAt = inviteTokenExpiresAt;
+    }
+
+    public LocalDateTime getInviteTokenExpiresAt() {
+        return inviteTokenExpiresAt;
+    }
+
+    public String getInviteToken() {
+        return inviteToken;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
 
     public void setRoomName(String roomName) {
         this.roomName = roomName;
