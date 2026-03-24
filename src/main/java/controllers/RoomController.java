@@ -425,6 +425,37 @@ public class RoomController {
         messagingTemplate.convertAndSend("/topic/rooms/" + room.get().getId(), dto);
     }
 
+    @GetMapping("/member/{room_id}")
+    public ApiResponseWrapper<List<MemberDTO>> getMembers(Principal principal, @PathVariable("room_id") Long roomId)
+    {
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("user not found");
+        }
+
+        Optional<Room> roomOpt = roomRepo.findById(roomId);
+        if (roomOpt.isEmpty()) {
+            return ApiResponseWrapper.error("room not found");
+        }
+
+        Room room = roomOpt.get();
+
+        boolean isMember = room.getMembers().stream()
+                .anyMatch(rm -> rm.getUser().getId().equals(me.getId()));
+
+        if (!isMember) {
+            return ApiResponseWrapper.error("you are not a member of this room");
+        }
+
+        List<MemberDTO> dto = room.getMembers().stream()
+                .map(rm -> new MemberDTO(
+                        rm.getUser().getUsername(),
+                        rm.getRole()
+                ))
+                .toList();
+
+        return ApiResponseWrapper.ok(dto);
+    }
 
 
 }
