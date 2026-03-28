@@ -32,6 +32,10 @@ public class User {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false, length = 20)
+    private UserRole role = UserRole.STUDENT;
+
     // ===== Constructors =====
 
     public User() {
@@ -98,6 +102,8 @@ public class User {
         return createdAt;
     }
 
+    public UserRole getRole() { return role; }
+
     // ===== Setters =====
 
     public void setId(Long id) {
@@ -131,4 +137,6 @@ public class User {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
+    public void setRole(UserRole role) { this.role = role; }
 }

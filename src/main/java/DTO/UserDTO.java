@@ -1,5 +1,6 @@
 package DTO;
 
+import model.UserRole;
 import java.time.LocalDateTime;
 
 public class UserDTO {
@@ -12,6 +13,7 @@ public class UserDTO {
     private LocalDateTime emailVerifiedAt;
     private Boolean enabled;
     private LocalDateTime createdAt;
+    private UserRole role;
 
 
     public UserDTO() {
@@ -37,7 +39,8 @@ public class UserDTO {
                    String status,
                    LocalDateTime emailVerifiedAt,
                    Boolean enabled,
-                   LocalDateTime createdAt) {
+                   LocalDateTime createdAt,
+                   UserRole role) {
         this.id = id;
         this.email = email;
         this.username = username;
@@ -46,6 +49,7 @@ public class UserDTO {
         this.emailVerifiedAt = emailVerifiedAt;
         this.enabled = enabled;
         this.createdAt = createdAt;
+        this.role = role;
     }
 
     // ===== GETTERS =====
@@ -82,6 +86,7 @@ public class UserDTO {
         return createdAt;
     }
 
+    public UserRole getRole() { return role; }
     // ===== SETTERS =====
 
     public void setId(Long id) {
@@ -115,6 +120,8 @@ public class UserDTO {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
+    public void  setRole (UserRole role) { this.role = role; }
 }
 
 

@@ -57,6 +57,20 @@ public class BlogController {
     @GetMapping("/all")
     public ApiResponseWrapper<List<BlogDTO>> getAllBlogs(Principal principal) {
         List<Blog> blogs = blogRepo.findAllByOrderByCreatedAtDesc();
+
+        blogs.sort((a, b) -> {
+            boolean aTeacher = a.getAuthor().getRole() == UserRole.TEACHER;
+            boolean bTeacher = b.getAuthor().getRole() == UserRole.TEACHER;
+
+            if (aTeacher && !bTeacher) {
+                return -1;
+            }
+            if (!aTeacher && bTeacher) {
+                return 1;
+            }
+            return b.getCreatedAt().compareTo(a.getCreatedAt());
+        });
+
         List<BlogDTO> dto = new ArrayList<>();
 
         for (Blog blog : blogs) {
@@ -73,7 +87,7 @@ public class BlogController {
         return ApiResponseWrapper.ok(dto);
     }
 
-    @GetMapping("/id")
+    @GetMapping("/{id}")
     public ApiResponseWrapper<BlogDTO> getBlogById(@PathVariable Long id) {
         Optional<Blog> blogOptional = blogRepo.findById(id);
 

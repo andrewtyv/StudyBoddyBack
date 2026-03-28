@@ -1,7 +1,7 @@
 package controllers;
 
 import DTO.ApiResponse;
-import model.User;
+import model.UserRole;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import repos.UserRepo;
@@ -63,7 +63,7 @@ public class RegistrationController {
         }
 
         model.User user = new model.User( email,username,passwordEncoder.encode(password));
-
+        user.setRole(UserRole.STUDENT);
         userRepo.save(user);
 
         String token = jwtUtil.generateToken(username);
