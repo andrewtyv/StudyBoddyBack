@@ -59,7 +59,7 @@ public class RegistrationController {
 
 
         if (userRepo.existsByEmail(email) || userRepo.existsByUsername(username)) {
-            return new ApiResponse("User with this username and password already exists ",null);
+            return new ApiResponse("User with this username or email already exists ",null);
         }
 
         model.User user = new model.User( email,username,passwordEncoder.encode(password));
