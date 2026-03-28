@@ -35,7 +35,10 @@ public class SettingsController {
                         me.getEmailVerifiedAt(),
                         me.getEnabled(),
                         me.getCreatedAt(),
-                        me.getRole()
+                        me.getRole(),
+                        me.getInstitute(),
+                        me.getFaculty(),
+                        me.getSubjects()
                 )
         );
     }
@@ -65,7 +68,45 @@ public class SettingsController {
                         me.getEmailVerifiedAt(),
                         me.getEnabled(),
                         me.getCreatedAt(),
-                        me.getRole()
+                        me.getRole(),
+                        me.getInstitute(),
+                        me.getFaculty(),
+                        me.getSubjects()
+                )
+        );
+    }
+
+    @PutMapping("/card")
+    public ApiResponseWrapper<UserDTO> updateMyCard(Principal principal, @RequestBody UserDTO body) {
+        User me = userRepo.findByUsername(principal.getName());
+
+        if (me == null) {
+            return ApiResponseWrapper.error("user not found");
+        }
+
+        me.setInstitute(body.getInstitute());
+        me.setFaculty(body.getFaculty());
+
+        if (body.getSubjects() != null) {
+            me.setSubjects(body.getSubjects());
+        }
+
+        userRepo.save(me);
+
+        return ApiResponseWrapper.ok(
+                new UserDTO(
+                        me.getId(),
+                        me.getEmail(),
+                        me.getUsername(),
+                        null,
+                        me.getStatus(),
+                        me.getEmailVerifiedAt(),
+                        me.getEnabled(),
+                        me.getCreatedAt(),
+                        me.getRole(),
+                        me.getInstitute(),
+                        me.getFaculty(),
+                        me.getSubjects()
                 )
         );
     }
