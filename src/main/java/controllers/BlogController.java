@@ -10,9 +10,16 @@ import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.Parameter;
 
 @RestController
 @RequestMapping("/blog")
+@Tag(name = "Blog", description = "Endpoints for creating, reading, updating, and deleting blog posts")
 public class BlogController {
 
     @Autowired
@@ -20,7 +27,58 @@ public class BlogController {
 
     @Autowired
     BlogRepo blogRepo;
-
+    @Operation(
+            summary = "Create a blog post",
+            description = "Creates a new blog post for the currently authenticated user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Blog post created successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": {
+                                                "id": 1,
+                                                "title": "My first blog",
+                                                "content": "This is my blog content",
+                                                "authorId": 5,
+                                                "authorUsername": "nazar",
+                                                "createdAt": "2026-03-31T12:30:00"
+                                              }
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation or user error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "title is required",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "content is required",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @PostMapping("/create")
     public ApiResponseWrapper<BlogDTO> createBlog(Principal principal, @RequestBody BlogDTO body) {
         User me = userRepo.findByUsername(principal.getName());
@@ -53,7 +111,45 @@ public class BlogController {
                 )
         );
     }
-
+    @Operation(
+            summary = "Get all blog posts",
+            description = "Returns all blog posts. Teacher posts are shown first, then the rest ordered by creation date descending."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "List of blog posts returned successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": [
+                                                {
+                                                  "id": 1,
+                                                  "title": "Teacher announcement",
+                                                  "content": "Important update",
+                                                  "authorId": 2,
+                                                  "authorUsername": "teacher1",
+                                                  "createdAt": "2026-03-31T10:00:00"
+                                                },
+                                                {
+                                                  "id": 2,
+                                                  "title": "Student post",
+                                                  "content": "Hello everyone",
+                                                  "authorId": 5,
+                                                  "authorUsername": "nazar",
+                                                  "createdAt": "2026-03-30T18:00:00"
+                                                }
+                                              ]
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
     @GetMapping("/all")
     public ApiResponseWrapper<List<BlogDTO>> getAllBlogs(Principal principal) {
         List<Blog> blogs = blogRepo.findAllByOrderByCreatedAtDesc();
@@ -86,7 +182,51 @@ public class BlogController {
 
         return ApiResponseWrapper.ok(dto);
     }
-
+    @Operation(
+            summary = "Get blog post by ID",
+            description = "Returns one blog post by its ID."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Blog post found",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": {
+                                                "id": 1,
+                                                "title": "My first blog",
+                                                "content": "This is my blog content",
+                                                "authorId": 5,
+                                                "authorUsername": "nazar",
+                                                "createdAt": "2026-03-31T12:30:00"
+                                              }
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "Blog post not found",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": false,
+                                              "message": "blog not found",
+                                              "data": null
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
     @GetMapping("/{id}")
     public ApiResponseWrapper<BlogDTO> getBlogById(@PathVariable Long id) {
         Optional<Blog> blogOptional = blogRepo.findById(id);
@@ -108,7 +248,58 @@ public class BlogController {
                 )
         );
     }
-
+    @Operation(
+            summary = "Update a blog post",
+            description = "Updates an existing blog post. Only the author of the post can update it."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Blog post updated successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": {
+                                                "id": 1,
+                                                "title": "Updated title",
+                                                "content": "Updated content",
+                                                "authorId": 5,
+                                                "authorUsername": "nazar",
+                                                "createdAt": "2026-03-31T12:30:00"
+                                              }
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation or ownership error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "blog id is required",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "you can update only your own blog",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @PutMapping("/update")
     public ApiResponseWrapper<BlogDTO> updateBlog(
             Principal principal,
@@ -160,7 +351,51 @@ public class BlogController {
                 )
         );
     }
-
+    @Operation(
+            summary = "Delete a blog post",
+            description = "Deletes a blog post. Only the author of the post can delete it."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Blog post deleted successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": "blog deleted"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation or ownership error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "blog id is required",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "you can delete only your own blog",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @DeleteMapping("/delete")
     public ApiResponseWrapper<String> deleteBlog(Principal principal, @RequestBody BlogDTO body) {
         User me = userRepo.findByUsername(principal.getName());

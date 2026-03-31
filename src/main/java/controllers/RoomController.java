@@ -14,6 +14,12 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * Controller responsible for room and messaging operations.
@@ -24,6 +30,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/room")
+@Tag(name = "Rooms", description = "Endpoints for direct chats, group rooms, invites, messages, and room membership")
 public class RoomController {
     @Autowired
     MessageRecipientRepo messageRecipientRepo;
@@ -63,6 +70,73 @@ public class RoomController {
      * @return an {@link ApiResponseWrapper} containing information about the created
      *         or already existing direct room
      */
+    @Operation(
+            summary = "Create direct room",
+            description = "Creates a direct room between the authenticated user and another user. If such room already exists, returns the existing room."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Direct room created or found successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "created",
+                                            value = """
+                                                    {
+                                                      "success": true,
+                                                      "message": "ok",
+                                                      "data": {
+                                                        "id": 12,
+                                                        "roomType": "DIRECT",
+                                                        "directKey": "3:8",
+                                                        "title": "",
+                                                        "unreadCount": 0
+                                                      }
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "already_exists",
+                                            value = """
+                                                    {
+                                                      "success": true,
+                                                      "message": "ok",
+                                                      "data": {
+                                                        "id": 12,
+                                                        "title": "the room already created"
+                                                      }
+                                                    }
+                                                    """
+                                    )
+                            }
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "username is not found",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "cannot create direct room with yourself",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @PostMapping("/create-direct")
     public ApiResponseWrapper<RoomDTO> createRoom (Principal principal, @RequestBody Map<String,String> body){
         System.out.println("here direct");
@@ -103,6 +177,57 @@ public class RoomController {
         return ApiResponseWrapper.ok(new RoomDTO(room.getId(), room.getRoomType(),room.getDirectKey(), "", Integer.valueOf(0)));
 
     }
+    @Operation(
+            summary = "Create group room",
+            description = "Creates a new group room and makes the authenticated user its owner."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Group room created successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": {
+                                                "id": 20,
+                                                "roomType": "GROUP",
+                                                "directKey": null,
+                                                "title": "Math group",
+                                                "unreadCount": 0
+                                              }
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "User or validation error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "user not found",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "group name is required",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @PostMapping("/group-room")
     public ApiResponseWrapper<RoomDTO> createGroupRoom(Principal principal, @RequestBody Map<String,String> body) {
         User me = userRepo.findByUsername(principal.getName());
@@ -125,7 +250,86 @@ public class RoomController {
         return ApiResponseWrapper.ok(new RoomDTO(room.getId(), RoomType.GROUP, null, groupName.trim(), 0));
 
     }
-
+    @Operation(
+            summary = "Create room invite",
+            description = "Creates a pending invite for a user to join a group room. Only room owner or admin can invite users."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Invite created successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": "invite created succesfully"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation or permission error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "something is null",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "You cannot invite yourself",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "Cannot invite users to direct room",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "Invite already exists",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "You are not a member of this room",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "User is already a member of this room",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "You don't have permission to invite users",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @PostMapping("/create-invite")
     public ApiResponseWrapper<String> create_invite(Principal principal, @RequestBody Map<String,String> api){
         User me = userRepo.findByUsername(principal.getName());
@@ -169,6 +373,36 @@ public class RoomController {
         return ApiResponseWrapper.ok("invite created succesfully");
 
     }
+
+    @Operation(
+            summary = "Get my invites",
+            description = "Returns all pending room invites for the authenticated user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Pending invites returned successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": [
+                                                {
+                                                  "id": 5,
+                                                  "roomId": 20,
+                                                  "roomName": "Math group",
+                                                  "inviterUsername": "teacher1"
+                                                }
+                                              ]
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
     @GetMapping("/my-invites")
     public ApiResponseWrapper<List<InviteDTO>> myInvites(Principal principal) {
 
@@ -191,7 +425,58 @@ public class RoomController {
 
         return ApiResponseWrapper.ok(response);
     }
-
+    @Operation(
+            summary = "Accept room invite",
+            description = "Accepts a pending room invite for the authenticated user and adds the user to the room."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Invite accepted successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": "accepted"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Invite validation error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "This is not your invite",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "Invite already processed",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "Already in room",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @PostMapping("/accept-invite")
     public ApiResponseWrapper<String> accept(Principal principal, @RequestBody  Map<String,String> api){
         User me = userRepo.findByUsername(principal.getName());
@@ -217,7 +502,58 @@ public class RoomController {
         return ApiResponseWrapper.ok("accepted");
 
     }
-
+    @Operation(
+            summary = "Accept room invite",
+            description = "Accepts a pending room invite for the authenticated user and adds the user to the room."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Invite accepted successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": "accepted"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Invite validation error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "This is not your invite",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "Invite already processed",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "Already in room",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @PostMapping("/decline-invite")
     public ApiResponseWrapper<String> decline(Principal principal, @RequestBody  Map<String,String> api){
         User me = userRepo.findByUsername(principal.getName());
@@ -250,6 +586,58 @@ public class RoomController {
          * @param principal authenticated user
          * @return an {@link ApiResponseWrapper} containing the list of direct rooms
          */
+        @Operation(
+                summary = "Decline room invite",
+                description = "Declines a pending room invite for the authenticated user."
+        )
+        @ApiResponses(value = {
+                @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                        responseCode = "200",
+                        description = "Invite declined successfully",
+                        content = @Content(
+                                mediaType = "application/json",
+                                examples = @ExampleObject(
+                                        value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": "accepted"
+                                            }
+                                            """
+                                )
+                        )
+                ),
+                @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                        responseCode = "400",
+                        description = "Invite validation error",
+                        content = @Content(
+                                mediaType = "application/json",
+                                examples = {
+                                        @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "This is not your invite",
+                                              "data": null
+                                            }
+                                            """),
+                                        @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "Invite already processed",
+                                              "data": null
+                                            }
+                                            """),
+                                        @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "Already in room",
+                                              "data": null
+                                            }
+                                            """)
+                                }
+                        )
+                )
+        })
     @GetMapping("/all-rooms")
     public ApiResponseWrapper<List<RoomDTO>> getAllRooms(Principal principal) {
 
@@ -304,6 +692,43 @@ public class RoomController {
      * @param api map containing the room identifier under {@code id}
      * @return an {@link ApiResponseWrapper} containing the result of the operation
      */
+    @Operation(
+            summary = "Get all rooms",
+            description = "Returns all rooms of the authenticated user together with unread message counts."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Rooms returned successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": [
+                                                {
+                                                  "id": 12,
+                                                  "roomType": "DIRECT",
+                                                  "directKey": "3:8",
+                                                  "title": "john",
+                                                  "unreadCount": 2
+                                                },
+                                                {
+                                                  "id": 20,
+                                                  "roomType": "GROUP",
+                                                  "directKey": null,
+                                                  "title": "Math group",
+                                                  "unreadCount": 0
+                                                }
+                                              ]
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
     @PostMapping("/read")
     public ApiResponseWrapper<String> ReadMessages(Principal principal, @RequestBody Map<String,String> api){
         Long roomId = Long.parseLong(api.get("id"));
@@ -338,6 +763,57 @@ public class RoomController {
      * @param api map containing the room identifier under {@code id}
      * @return an {@link ApiResponseWrapper} containing the list of room messages
      */
+    @Operation(
+            summary = "Enter room",
+            description = "Returns all messages from the specified room for the authenticated user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Room messages returned successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": [
+                                                {
+                                                  "content": "Hello",
+                                                  "messageType": "TEXT",
+                                                  "senderUsername": "john"
+                                                }
+                                              ]
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Room validation error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "room with provided id not found",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "you are not a member of this room",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @PostMapping("/enter")
     public ApiResponseWrapper<List<MessageDTO>> enterRoom(Principal principal, @RequestBody Map<String,String> api){
 
@@ -375,11 +851,10 @@ public class RoomController {
      * @param principal authenticated user
      * @param api map containing {@code roomId}, {@code content}, and {@code messageType}
      */
-    /*
-        roomId: ""
-        content: ""
-        messageType: ""
-     */
+    @Operation(
+            summary = "Send room message over WebSocket",
+            description = "WebSocket endpoint for sending a message to a room. Payload should contain roomId, content, and messageType."
+    )
     @MessageMapping("send-message")
     public void sendMessage(Principal principal, Map<String,String> api){
         User me = userRepo.findByUsername(principal.getName());
@@ -427,7 +902,67 @@ public class RoomController {
 
         messagingTemplate.convertAndSend("/topic/rooms/" + room.get().getId(), dto);
     }
-
+    @Operation(
+            summary = "Get room members",
+            description = "Returns all members of the specified room. Accessible only to room members."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Room members returned successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": [
+                                                {
+                                                  "username": "nazar",
+                                                  "role": "OWNER"
+                                                },
+                                                {
+                                                  "username": "john",
+                                                  "role": "MEMBER"
+                                                }
+                                              ]
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Room access error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "user not found",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "room not found",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "you are not a member of this room",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @GetMapping("/member/{room_id}")
     public ApiResponseWrapper<List<MemberDTO>> getMembers(Principal principal, @PathVariable("room_id") Long roomId)
     {
@@ -459,7 +994,51 @@ public class RoomController {
 
         return ApiResponseWrapper.ok(dto);
     }
-
+    @Operation(
+            summary = "Get friends not in room",
+            description = "Returns the authenticated user's friends who are not already members of the specified room."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Users returned successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": [
+                                                {
+                                                  "username": "anna"
+                                                },
+                                                {
+                                                  "username": "maria"
+                                                }
+                                              ]
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Room error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": false,
+                                              "message": "room doesn't exists",
+                                              "data": null
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
     @GetMapping("/friends/not-in/{room_id}")
     public ApiResponseWrapper<List<UserDTO>> getFriendsNotInGroup(Principal principal, @PathVariable("room_id") Long roomId){
         Room room = roomRepo.findById(roomId).orElse(null);
@@ -488,6 +1067,65 @@ public class RoomController {
         return ApiResponseWrapper.ok(result);
 
     }
+    @Operation(
+            summary = "Generate room invite token",
+            description = "Generates an invite token for a group room. Only owner or admin can generate it."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Invite token generated successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": "studybuddy://join-room?token=550e8400-e29b-41d4-a716-446655440000"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Permission or room error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "Room doesn't exists",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "User not found",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "You are not a member of this room",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "You don't have permission to generate invite token",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @PostMapping ("/invite-token/{room_id}")
     public ApiResponseWrapper<String> generateToken(Principal principal, @PathVariable("room_id") Long roomId){
         Room room = roomRepo.findById(roomId).orElse(null);
@@ -522,6 +1160,65 @@ public class RoomController {
         return ApiResponseWrapper.ok(qrValue);
 
     }
+    @Operation(
+            summary = "Generate room invite token",
+            description = "Generates an invite token for a group room. Only owner or admin can generate it."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Invite token generated successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": "studybuddy://join-room?token=550e8400-e29b-41d4-a716-446655440000"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Permission or room error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "Room doesn't exists",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "User not found",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "You are not a member of this room",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "You don't have permission to generate invite token",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @PostMapping("/join-by-token")
     public ApiResponseWrapper<String> joinByToken(Principal principal, @RequestBody Map<String,String> api){
         String token = api.get("token");

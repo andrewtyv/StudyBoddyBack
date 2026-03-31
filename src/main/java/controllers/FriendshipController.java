@@ -17,6 +17,14 @@ import java.security.Principal;
 import java.util.List;
 import java.util.Map;
 
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 /**
  * Controller responsible for friendship management.
  *
@@ -26,6 +34,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/user")
+@Tag(name = "Friendships", description = "Endpoints for friendship requests and friend management")
 public class FriendshipController {
 
     @Autowired
@@ -36,15 +45,6 @@ public class FriendshipController {
 
     @Autowired
     FriendshipRepo friendshipRepo;
-
-
-
-    /*
-    @GetMapping("/friends")
-    public ApiResponse getAllFriends(@RequestBody String username){
-
-    }
-    */
 
     /**
      * Creates a new friendship request from the authenticated user to another user.
@@ -59,6 +59,54 @@ public class FriendshipController {
      * @param request map containing the target username under {@code addressee_username}
      * @return an {@link ApiResponse} containing the result of the operation
      */
+    @Operation(
+            summary = "Send friendship request",
+            description = "Creates a new friendship request from the authenticated user to another user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Friendship request created successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "message": "request successfully created",
+                                              "data": null
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "message": "user not found",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "message": "cannot add yourself",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "message": "request already exists",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @PostMapping("/make_request")
     public ApiResponse makeRequest(Principal principal, @RequestBody Map<String, String> request) {
         String requesterUsername = principal.getName();
@@ -99,7 +147,35 @@ public class FriendshipController {
      * @param principal authenticated user
      * @return an {@link ApiResponseWrapper} containing the list of incoming friendship requests
      */
-
+    @Operation(
+            summary = "Get incoming friendship requests",
+            description = "Returns all incoming pending friendship requests for the authenticated user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Incoming friendship requests returned successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": [
+                                                {
+                                                  "id": 1,
+                                                  "username": "john",
+                                                  "status": "PENDING",
+                                                  "friendshipSentAt": "2026-03-31T12:00:00"
+                                                }
+                                              ]
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
     @GetMapping("/friend-requests/incoming")
     public ApiResponseWrapper<List<FriendshipDTO>> incoming(Principal principal) {
         User me = userRepo.findByUsername(principal.getName());
@@ -133,6 +209,35 @@ public class FriendshipController {
      * @param principal authenticated user
      * @return an {@link ApiResponseWrapper} containing the list of outgoing friendship requests
      */
+    @Operation(
+            summary = "Get outgoing friendship requests",
+            description = "Returns all outgoing pending friendship requests created by the authenticated user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Outgoing friendship requests returned successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": [
+                                                {
+                                                  "id": 2,
+                                                  "username": "anna",
+                                                  "status": "PENDING",
+                                                  "friendshipSentAt": "2026-03-31T13:00:00"
+                                                }
+                                              ]
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
     @GetMapping("/friend-requests/outgoing")
     public ApiResponseWrapper<List<FriendshipDTO>> outgoing(Principal principal){
         User me = userRepo.findByUsername(principal.getName());
@@ -163,6 +268,42 @@ public class FriendshipController {
      * @param api map containing the requester username under {@code requester_username}
      * @return an {@link ApiResponse} containing the result of the operation
      */
+    @Operation(
+            summary = "Accept friendship request",
+            description = "Accepts an incoming friendship request for the authenticated user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Friendship request accepted",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "message": "friendship accepted",
+                                              "data": null
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Friendship request not found",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "message": "this friedship never existed",
+                                              "data": null
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
     @PutMapping("/friend-requests/accept")
     public ApiResponse acceptFriendship(Principal principal, @RequestBody Map<String, String> api){
 
@@ -188,7 +329,42 @@ public class FriendshipController {
      * @param api map containing the requester username under {@code requester_username}
      * @return an {@link ApiResponse} containing the result of the operation
      */
-
+    @Operation(
+            summary = "Reject friendship request",
+            description = "Rejects an incoming friendship request for the authenticated user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Friendship request rejected",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "message": "friendship rejected",
+                                              "data": null
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Friendship request not found",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "message": "this friendship neber existed",
+                                              "data": null
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
     @PutMapping("/friend-requests/reject")
     public ApiResponse rejectFriendship(Principal principal, @RequestBody Map<String,String> api){
 
@@ -211,6 +387,35 @@ public class FriendshipController {
      * @param principal authenticated user
      * @return an {@link ApiResponseWrapper} containing the list of accepted friendships
      */
+    @Operation(
+            summary = "Get all friends",
+            description = "Returns all accepted friendships of the authenticated user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Friends returned successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": [
+                                                {
+                                                  "id": 3,
+                                                  "username": "maria",
+                                                  "status": "ACCEPTED",
+                                                  "friendshipSentAt": "2026-03-28T15:00:00"
+                                                }
+                                              ]
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
     @GetMapping("/friends")
     public ApiResponseWrapper<List<FriendshipDTO>> friendship(Principal principal){
         System.out.println("\nfriends\n");
@@ -259,6 +464,65 @@ public class FriendshipController {
      * @param api map containing the friend's username under {@code friend_username}
      * @return an {@link ApiResponseWrapper} containing the result of the operation
      */
+    @Operation(
+            summary = "Remove friend",
+            description = "Removes an accepted friendship between the authenticated user and another user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Friend removed successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "success": true,
+                                              "message": "ok",
+                                              "data": "friend removed successfully"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation or lookup error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "friend username is required",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "user not found",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "friendship not found",
+                                              "data": null
+                                            }
+                                            """),
+                                    @ExampleObject(value = """
+                                            {
+                                              "success": false,
+                                              "message": "users are not friends",
+                                              "data": null
+                                            }
+                                            """)
+                            }
+                    )
+            )
+    })
     @DeleteMapping("/friends/remove")
     public ApiResponseWrapper<String> removeFriend(Principal principal, @RequestBody Map<String, String> api) {
         String myUsername = principal.getName();
