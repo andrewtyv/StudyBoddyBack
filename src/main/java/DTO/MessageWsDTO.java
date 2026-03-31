@@ -11,17 +11,19 @@ public class MessageWsDTO {
     private String content;
     private MessageType messageType;
     private Instant createdAt;
+    private String photoUrl;
 
     public MessageWsDTO() {
     }
 
-    public MessageWsDTO(Long id, Long roomId, String senderUsername, String content, MessageType messageType, Instant createdAt) {
+    public MessageWsDTO(Long id, Long roomId, String senderUsername, String content, MessageType messageType, Instant createdAt, String photoUrl) {
         this.id = id;
         this.roomId = roomId;
         this.senderUsername = senderUsername;
         this.content = content;
         this.messageType = messageType;
         this.createdAt = createdAt;
+        this.photoUrl = photoUrl;
     }
 
     public Long getId() {
@@ -46,6 +48,14 @@ public class MessageWsDTO {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public String getPhotoUrl() {
+        return photoUrl;
+    }
+
+    public void setPhotoUrl(String photoUrl) {
+        this.photoUrl = photoUrl;
     }
 
     public void setId(Long id) {

@@ -18,17 +18,17 @@ public class ApiResponseWrapper<T> {
         this.token = token;
     }
 
-    // 🔥 OK без токена
+    //  OK
     public static <T> ApiResponseWrapper<T> ok(T data) {
         return new ApiResponseWrapper<>(true, null, data, null);
     }
 
-    // 🔥 OK з токеном (для логіну)
+    // OK
     public static <T> ApiResponseWrapper<T> ok(String message, String token) {
         return new ApiResponseWrapper<>(true, message, null, token);
     }
 
-    // 🔥 Error
+    // Error
     public static <T> ApiResponseWrapper<T> error(String message) {
         return new ApiResponseWrapper<>(false, message, null, null);
     }

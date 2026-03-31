@@ -31,7 +31,16 @@ public class Message {
 
     @Column(nullable = false)
     private java.time.Instant createdAt = java.time.Instant.now();
+//    @Lob
+//    @Basic(fetch = FetchType.LAZY)
+    @Column(name = "photo_data", columnDefinition = "bytea")
+    private byte[] photoData;
 
+    @Column(name = "photo_name")
+    private String photoName;
+
+    @Column(name = "photo_content_type")
+    private String photoContentType;
     public Message(){
 
     }
@@ -70,5 +79,32 @@ public class Message {
 
     public Instant getCreatedAt() {
         return this.createdAt;
+    }
+    public void setRoom(Room room) {
+        this.room = room;
+    }
+
+    public byte[] getPhotoData() {
+        return photoData;
+    }
+
+    public void setPhotoData(byte[] photoData) {
+        this.photoData = photoData;
+    }
+
+    public String getPhotoName() {
+        return photoName;
+    }
+
+    public void setPhotoName(String photoName) {
+        this.photoName = photoName;
+    }
+
+    public String getPhotoContentType() {
+        return photoContentType;
+    }
+
+    public void setPhotoContentType(String photoContentType) {
+        this.photoContentType = photoContentType;
     }
 }

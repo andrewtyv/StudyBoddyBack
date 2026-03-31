@@ -7,14 +7,19 @@ public class MessageDTO {
     private String content;
     private MessageType messageType;
     private String senderUsername;
+    private Long id;
+    private String photoUrl;
+
 
 
     public MessageDTO(){}
 
-    public MessageDTO(String content, MessageType messageType, String senderUsername){
+    public MessageDTO(Long id, String content, MessageType messageType, String senderUsername, String photoUrl) {
+        this.id = id;
         this.content = content;
         this.messageType = messageType;
         this.senderUsername = senderUsername;
+        this.photoUrl = photoUrl;
     }
 
     public String getContent() {
@@ -27,5 +32,11 @@ public class MessageDTO {
 
     public String getSenderUsername() {
         return this.senderUsername;
+    }
+    public String getPhotoUrl() {
+        return this.photoUrl;
+    }
+    public Long id () {
+        return this.id;
     }
 }

@@ -66,6 +66,7 @@ public class RegistrationControllerTests {
     }
     @Test
     public void register_shouldReturnError_whenUserAlreadyExists() {
+        //Arrange
         Map<String, String> request = Map.of(
                 "email", email,
                 "username", username,
@@ -74,12 +75,13 @@ public class RegistrationControllerTests {
         when(userRepo.existsByEmail(email)).thenReturn(true);
 
 
-        //
+        //Act
         ApiResponse response = registrationController.registerUser(request);
         assertNotNull(response);
         assertEquals("User with this username or email already exists ", response.getMessage());
         assertNull(response.getToken());
 
+        //Assert
         verify(userRepo, never()).save(any(User.class));
         verify(passwordEncoder, never()).encode(anyString());
         verify(jwtUtil, never()).generateToken(anyString());
