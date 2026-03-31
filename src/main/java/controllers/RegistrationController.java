@@ -12,6 +12,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import security.JwtUtil;
 import java.security.Principal;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
 import java.util.Map;
 
@@ -49,6 +54,42 @@ public class RegistrationController {
      * @return an {@link ApiResponse} containing the result message and generated token,
      *         if registration fails, the token is {@code null}
      */
+    @Operation(
+            summary = "Register a new user",
+            description = "Creates a new user account, saves the user in the database, and returns a JWT token."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "User registered successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "message": "Registration successful. Please validate your email.",
+                                              "data": "jwt_token_here"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "User with this username or email already exists",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "message": "User with this username or email already exists",
+                                              "data": null
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
     @PostMapping("/register")
     public ApiResponse registerUser(@RequestBody Map<String, String> request) {
         System.out.println("register");
@@ -83,6 +124,42 @@ public class RegistrationController {
      * @return an {@link ApiResponse} containing the result message and generated token,
      *         if authentication fails, the token is {@code null}
      */
+    @Operation(
+            summary = "Login user",
+            description = "Authenticates a user with username and password and returns a JWT token if credentials are valid."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Login successful",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "message": "Login succesfull",
+                                              "data": "jwt_token_here"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "Invalid username or password",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "message": "invalid login or password",
+                                              "data": null
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
     @PostMapping("/login")
     public ApiResponse login(@RequestBody Map<String, String> request) {
         String username = request.get("username");
