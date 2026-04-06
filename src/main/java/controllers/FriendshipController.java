@@ -585,6 +585,38 @@ public class FriendshipController {
     }
 
 
+    @PutMapping("/friend-requests/cancel")
+    public ApiResponseWrapper<String> cancelFriendshipRequest(Principal principal, @RequestBody Map<String, String> api) {
+        String requesterUsername = principal.getName();
+        String addresseeUsername = api.get("addressee_username");
+
+        if (requesterUsername == null || addresseeUsername == null || addresseeUsername.trim().isEmpty()) {
+            return ApiResponseWrapper.error("invalid usernames");
+        }
+
+        User requester = userRepo.findByUsername(requesterUsername);
+        User addressee = userRepo.findByUsername(addresseeUsername.trim());
+
+        if (requester == null || addressee == null) {
+            return ApiResponseWrapper.error("user not found");
+        }
+
+        Friendship friendship = friendshipRepo.findByRequester_IdAndAddressee_Id(
+                requester.getId(),
+                addressee.getId()
+        );
+
+        if (friendship == null) {
+            return ApiResponseWrapper.error("request not found");
+        }
+
+        if (friendship.getStatus() != FriendshipStatus.PENDING) {
+            return  ApiResponseWrapper.error("request is not pending");
+        }
+
+        friendshipRepo.delete(friendship);
+        return  ApiResponseWrapper.ok("request canceled");
+    }
 
 
 }

@@ -2,7 +2,7 @@ package DTO;
 
 import model.MessageType;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 public class MessageWsDTO {
     private Long id;
@@ -10,13 +10,20 @@ public class MessageWsDTO {
     private String senderUsername;
     private String content;
     private MessageType messageType;
-    private Instant createdAt;
+    private LocalDateTime createdAt;
     private String photoUrl;
+    private String photoContentType;
+    private String photoName;
 
-    public MessageWsDTO() {
-    }
-
-    public MessageWsDTO(Long id, Long roomId, String senderUsername, String content, MessageType messageType, Instant createdAt, String photoUrl) {
+    public MessageWsDTO(Long id,
+                        Long roomId,
+                        String senderUsername,
+                        String content,
+                        MessageType messageType,
+                        LocalDateTime createdAt,
+                        String photoUrl,
+                        String photoContentType,
+                        String photoName) {
         this.id = id;
         this.roomId = roomId;
         this.senderUsername = senderUsername;
@@ -24,6 +31,8 @@ public class MessageWsDTO {
         this.messageType = messageType;
         this.createdAt = createdAt;
         this.photoUrl = photoUrl;
+        this.photoContentType = photoContentType;
+        this.photoName = photoName;
     }
 
     public Long getId() {
@@ -46,7 +55,7 @@ public class MessageWsDTO {
         return messageType;
     }
 
-    public Instant getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
@@ -54,31 +63,11 @@ public class MessageWsDTO {
         return photoUrl;
     }
 
-    public void setPhotoUrl(String photoUrl) {
-        this.photoUrl = photoUrl;
+    public String getPhotoContentType() {
+        return photoContentType;
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setRoomId(Long roomId) {
-        this.roomId = roomId;
-    }
-
-    public void setSenderUsername(String senderUsername) {
-        this.senderUsername = senderUsername;
-    }
-
-    public void setContent(String content) {
-        this.content = content;
-    }
-
-    public void setMessageType(MessageType messageType) {
-        this.messageType = messageType;
-    }
-
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
+    public String getPhotoName() {
+        return photoName;
     }
 }

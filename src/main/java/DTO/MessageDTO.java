@@ -2,41 +2,65 @@ package DTO;
 
 import model.MessageType;
 
-public class MessageDTO {
+import java.time.Instant;
 
+public class MessageDTO {
+    private Long id;
     private String content;
     private MessageType messageType;
     private String senderUsername;
-    private Long id;
+    private Instant createdAt;
     private String photoUrl;
+    private String photoName;
+    private String photoContentType;
 
-
-
-    public MessageDTO(){}
-
-    public MessageDTO(Long id, String content, MessageType messageType, String senderUsername, String photoUrl) {
+    public MessageDTO(Long id,
+                      String content,
+                      MessageType messageType,
+                      String senderUsername,
+                      Instant createdAt,
+                      String photoUrl,
+                      String photoName,
+                      String photoContentType) {
         this.id = id;
         this.content = content;
         this.messageType = messageType;
         this.senderUsername = senderUsername;
+        this.createdAt = createdAt;
         this.photoUrl = photoUrl;
+        this.photoName = photoName;
+        this.photoContentType = photoContentType;
+    }
+
+    public Long getId() {
+        return id;
     }
 
     public String getContent() {
-        return this.content;
+        return content;
     }
 
     public MessageType getMessageType() {
-        return this.messageType;
+        return messageType;
     }
 
     public String getSenderUsername() {
-        return this.senderUsername;
+        return senderUsername;
     }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
     public String getPhotoUrl() {
-        return this.photoUrl;
+        return photoUrl;
     }
-    public Long id () {
-        return this.id;
+
+    public String getPhotoName() {
+        return photoName;
+    }
+
+    public String getPhotoContentType() {
+        return photoContentType;
     }
 }

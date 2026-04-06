@@ -51,7 +51,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String username = jwtUtil.extractUsername(token);
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // мінімально: без ролей
                 var auth = new UsernamePasswordAuthenticationToken(
                         username,
                         null,
