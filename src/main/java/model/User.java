@@ -2,6 +2,8 @@ package model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "users")
@@ -44,12 +46,28 @@ public class User {
 
     @ElementCollection(targetClass = Subject.class, fetch = FetchType.EAGER)
     @CollectionTable(name = "user_subjects", joinColumns = @JoinColumn(name = "user_id"))
-
     @Column(name = "subject", nullable = false)
     @Enumerated(EnumType.STRING)
-    private java.util.Set<Subject> subjects = new java.util.HashSet<>();
+    private Set<Subject> subjects = new HashSet<>();
+
+    @Column
+    String photoUrl;
+
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
+    @Column(name = "location_updated_at")
+    private LocalDateTime locationUpdatedAt;
+
+    @Column(name = "google_sub", unique = true, length = 255)
+    private String googleSub;
 
     // ===== Constructors =====
+
+
 
     public User() {
     }
@@ -81,7 +99,45 @@ public class User {
         this.createdAt = createdAt;
     }
 
-    // ===== Getters =====
+    public String getGoogleSub() {
+        return googleSub;
+    }
+
+    public void setGoogleSub(String googleSub) {
+        this.googleSub = googleSub;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public void setLocationUpdatedAt(LocalDateTime locationUpdatedAt) {
+        this.locationUpdatedAt = locationUpdatedAt;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public LocalDateTime getLocationUpdatedAt() {
+        return locationUpdatedAt;
+    }
+
+    public String getPhotoUrl() {
+        return photoUrl;
+    }
+
+    public void setPhotoUrl(String photoUrl) {
+        this.photoUrl = photoUrl;
+    }
 
     public Long getId() {
         return id;
@@ -126,7 +182,6 @@ public class User {
     }
 
 
-    // ===== Setters =====
 
     public void setId(Long id) {
         this.id = id;

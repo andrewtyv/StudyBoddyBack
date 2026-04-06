@@ -253,10 +253,6 @@ public class RegistrationController {
             user.setEnabled(true);
         }
 
-        if (picture != null && !picture.isBlank()) {
-            user.setAvatarUrl(picture);
-        }
-
         if (emailVerified && user.getEmailVerifiedAt() == null) {
             user.setEmailVerifiedAt(LocalDateTime.now());
         }
@@ -279,19 +275,16 @@ public class RegistrationController {
     }
 
     private UserDTO toUserDTO(User user) {
-        UserDTO dto = new UserDTO();
-        dto.setId(user.getId());
-        dto.setEmail(user.getEmail());
-        dto.setUsername(user.getUsername());
-        dto.setPassword(null);
-        dto.setStatus(user.getStatus());
-        dto.setEmailVerifiedAt(user.getEmailVerifiedAt());
-        dto.setEnabled(user.getEnabled());
-        dto.setCreatedAt(user.getCreatedAt());
-        dto.setRole(user.getRole());
-        dto.setInstitute(user.getInstitute());
-        dto.setFaculty(user.getFaculty());
-        dto.setSubjects(user.getSubjects());
+        UserDTO dto = new UserDTO(user.getId(),
+                user.getEmail(),
+                user.getUsername(),
+                user.getPassword(),
+                user.getStatus(),
+                user.getEmailVerifiedAt(),
+                user.getEnabled(),
+                user.getCreatedAt(),
+                user.getRole()
+        );
         return dto;
     }
 

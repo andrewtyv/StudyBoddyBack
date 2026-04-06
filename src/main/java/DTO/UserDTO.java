@@ -56,6 +56,8 @@ public class UserDTO {
 
     }
 
+
+
     // ===== GETTERS =====
 
     public Long getId() {
