@@ -1,14 +1,28 @@
 package controllers;
 
 import DTO.ApiResponseWrapper;
+import DTO.StudentProfileDTO;
 import DTO.UserDTO;
+import model.StudentProfile;
 import model.User;
 import model.UserRole;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import repos.StudentProfileRepo;
 import repos.UserRepo;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.security.Principal;
+import java.util.Set;
+import java.util.UUID;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -22,6 +36,20 @@ public class SettingsController {
 
     @Autowired
     UserRepo userRepo;
+
+    @Autowired
+    StudentProfileRepo studentProfileRepo;
+
+    @Value("${app.upload.dir:uploads}")
+    private String uploadDir;
+
+    private static final Set<String> ALLOWED_TYPES = Set.of(
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/webp"
+    );
+
     @Operation(
             summary = "Get current user",
             description = "Returns the authenticated user's profile information."
@@ -91,10 +119,7 @@ public class SettingsController {
                         me.getEmailVerifiedAt(),
                         me.getEnabled(),
                         me.getCreatedAt(),
-                        me.getRole(),
-                        me.getInstitute(),
-                        me.getFaculty(),
-                        me.getSubjects()
+                        me.getRole()
                 )
         );
     }
@@ -181,10 +206,7 @@ public class SettingsController {
                         me.getEmailVerifiedAt(),
                         me.getEnabled(),
                         me.getCreatedAt(),
-                        me.getRole(),
-                        me.getInstitute(),
-                        me.getFaculty(),
-                        me.getSubjects()
+                        me.getRole()
                 )
         );
     }
@@ -239,38 +261,125 @@ public class SettingsController {
                     )
             )
     })
-    @PutMapping("/card")
-    public ApiResponseWrapper<UserDTO> updateMyCard(Principal principal, @RequestBody UserDTO body) {
+    @PutMapping("/update-card")
+    public ApiResponseWrapper<String> updateMyCard(Principal principal, @RequestBody StudentProfileDTO body) {
         User me = userRepo.findByUsername(principal.getName());
 
         if (me == null) {
             return ApiResponseWrapper.error("user not found");
         }
 
-        me.setInstitute(body.getInstitute());
-        me.setFaculty(body.getFaculty());
-
-        if (body.getSubjects() != null) {
-            me.setSubjects(body.getSubjects());
+        if (me.getRole() != UserRole.STUDENT) {
+            return ApiResponseWrapper.error("only students can have a student profile");
         }
 
-        userRepo.save(me);
+        if (body.getSchool() == null || body.getSchool().isBlank()) {
+            return ApiResponseWrapper.error("school is required");
+        }
 
-        return ApiResponseWrapper.ok(
-                new UserDTO(
-                        me.getId(),
-                        me.getEmail(),
-                        me.getUsername(),
-                        null,
-                        me.getStatus(),
-                        me.getEmailVerifiedAt(),
-                        me.getEnabled(),
-                        me.getCreatedAt(),
-                        me.getRole(),
-                        me.getInstitute(),
-                        me.getFaculty(),
-                        me.getSubjects()
-                )
-        );
+        if (body.getFaculty() == null || body.getFaculty().isBlank()) {
+            return ApiResponseWrapper.error("faculty is required");
+        }
+
+        if (body.getSubjects() == null || body.getSubjects().isEmpty()) {
+            return ApiResponseWrapper.error("at least one subject is required");
+        }
+
+        StudentProfile profile = studentProfileRepo.findByUser(me);
+
+        if (profile == null) {
+            profile = new StudentProfile();
+            profile.setUser(me);
+        }
+
+        profile.setSchool(body.getSchool());
+        profile.setFaculty(body.getFaculty());
+        profile.setSubjects(body.getSubjects());
+
+        studentProfileRepo.save(profile);
+
+        return ApiResponseWrapper.ok("updated successfully");
     }
+
+    @GetMapping("/card")
+    public ApiResponseWrapper<StudentProfileDTO> getMyCard(Principal principal) {
+        User me = userRepo.findByUsername(principal.getName());
+
+        if (me == null) {
+            return ApiResponseWrapper.error("user not found");
+        }
+
+        StudentProfile profile = studentProfileRepo.findByUser(me);
+
+        if (profile== null) {
+            return ApiResponseWrapper.error("profile not found");
+        }
+
+        return ApiResponseWrapper.ok(new StudentProfileDTO(profile));
+    }
+
+    @PostMapping("/upload-avatar")
+    public ApiResponseWrapper<String> uploadAvatar(
+            Principal principal,
+            @RequestParam("file") MultipartFile file
+    ) {
+        User me = userRepo.findByUsername(principal.getName());
+
+        if (me == null) {
+            return ApiResponseWrapper.error("user not found");
+        }
+
+        if (file == null || file.isEmpty()) {
+            return ApiResponseWrapper.error("file is empty");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_TYPES.contains(contentType.toLowerCase())) {
+            return ApiResponseWrapper.error("only jpg, jpeg, png, webp are allowed");
+        }
+
+        try {
+            Path avatarUploadPath = Paths.get(uploadDir, "user-avatar", "user_" + me.getId());
+            Files.createDirectories(avatarUploadPath);
+
+            String originalName = StringUtils.cleanPath(
+                    file.getOriginalFilename() == null ? "avatar.jpg" : file.getOriginalFilename()
+            );
+
+            String extension = getExtension(originalName, contentType);
+            String storedName = UUID.randomUUID() + extension;
+
+            Path targetPath = avatarUploadPath.resolve(storedName);
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+
+            String relativeUrl = "/uploads/user-avatar/user_" + me.getId() + "/" + storedName;
+
+            me.setPhotoUrl(relativeUrl);
+            userRepo.save(me);
+
+            return ApiResponseWrapper.ok(relativeUrl);
+
+        } catch (IOException e) {
+            return ApiResponseWrapper.error("upload failed");
+        }
+    }
+    private String getExtension(String originalName, String contentType) {
+        int dotIndex = originalName.lastIndexOf(".");
+        if (dotIndex >= 0 && dotIndex < originalName.length() - 1) {
+            return originalName.substring(dotIndex);
+        }
+
+        return switch (contentType.toLowerCase()) {
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            default -> ".jpg";
+        };
+    }
+
+
+
 }
+
+
+
+

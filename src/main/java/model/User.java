@@ -36,18 +36,9 @@ public class User {
     @Column(name = "role", nullable = false, length = 20)
     private UserRole role = UserRole.STUDENT;
 
-    @Column(name = "institute", length = 255)
-    private String institute;
+    @Column
+    private String photoUrl;
 
-    @Column(name = "faculty", length = 255)
-    private String faculty;
-
-    @ElementCollection(targetClass = Subject.class, fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_subjects", joinColumns = @JoinColumn(name = "user_id"))
-
-    @Column(name = "subject", nullable = false)
-    @Enumerated(EnumType.STRING)
-    private java.util.Set<Subject> subjects = new java.util.HashSet<>();
 
     // ===== Constructors =====
 
@@ -117,13 +108,6 @@ public class User {
 
     public UserRole getRole() { return role; }
 
-    public String getInstitute() {
-        return institute;
-    }
-
-    public String getFaculty() {
-        return faculty;
-    }
 
 
     // ===== Setters =====
@@ -161,20 +145,9 @@ public class User {
     }
 
     public void setRole(UserRole role) { this.role = role; }
-
-    public void setInstitute(String institute) {
-        this.institute = institute;
+    public void setPhotoUrl(String photoUrl){
+        this.photoUrl=photoUrl;
     }
 
-    public void setFaculty(String faculty) {
-        this.faculty = faculty;
-    }
 
-    public java.util.Set<Subject> getSubjects() {
-        return subjects;
-    }
-
-    public void setSubjects(java.util.Set<Subject> subjects) {
-        this.subjects = subjects;
-    }
 }

@@ -16,9 +16,7 @@ public class UserDTO {
     private Boolean enabled;
     private LocalDateTime createdAt;
     private UserRole role;
-    private String institute;
-    private String faculty;
-    private java.util.Set<Subject> subjects;
+
 
 
     public UserDTO() {
@@ -45,10 +43,7 @@ public class UserDTO {
                    LocalDateTime emailVerifiedAt,
                    Boolean enabled,
                    LocalDateTime createdAt,
-                   UserRole role,
-                   String institute,
-                   String faculty,
-                   Set<Subject> subjects) {
+                   UserRole role) {
         this.id = id;
         this.email = email;
         this.username = username;
@@ -58,9 +53,7 @@ public class UserDTO {
         this.enabled = enabled;
         this.createdAt = createdAt;
         this.role = role;
-        this.institute = institute;
-        this.faculty = faculty;
-        this.subjects = subjects;
+
     }
 
     // ===== GETTERS =====
@@ -99,13 +92,6 @@ public class UserDTO {
 
     public UserRole getRole() { return role; }
 
-    public String getInstitute() {
-        return institute;
-    }
-
-    public String getFaculty() {
-        return faculty;
-    }
 
 
     // ===== SETTERS =====
@@ -144,21 +130,6 @@ public class UserDTO {
 
     public void  setRole (UserRole role) { this.role = role; }
 
-    public void setInstitute(String institute) {
-        this.institute = institute;
-    }
-
-    public void setFaculty(String faculty) {
-        this.faculty = faculty;
-    }
-
-    public Set<Subject> getSubjects() {
-        return subjects;
-    }
-
-    public void setSubjects(Set<Subject> subjects) {
-        this.subjects = subjects;
-    }
 }
 
 

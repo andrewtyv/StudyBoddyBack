@@ -1,10 +1,10 @@
 package controllers;
 
 import DTO.*;
-import io.jsonwebtoken.io.IOException;
 import model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -12,12 +12,12 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import repos.*;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.ZoneId;
-import java.util.Base64;
 
 import java.security.Principal;
 import java.time.LocalDate;
@@ -987,18 +987,31 @@ public class RoomController {
     }
 
     @PostMapping("/upload-photo")
-    public ResponseEntity<?> uploadPhoto(@RequestParam("file") MultipartFile file) throws Exception {
+    public ResponseEntity<?> uploadPhoto(Principal principal, @RequestParam("file") MultipartFile file, @RequestParam("roomId") Long roomId){
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest().body("File is empty");
+        }
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ResponseEntity.badRequest().body("User not found");
         }
 
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_TYPES.contains(contentType.toLowerCase())) {
             return ResponseEntity.badRequest().body("Only jpg, jpeg, png, webp are allowed");
         }
+        Optional<Room> roomOpt = roomRepo.findById(roomId);
+
+        if (roomOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Room not found");
+        }
+        if (!roomMemberRepo.existsByRoom_IdAndUser_Id(roomId, me.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Not a member of this room");
+        }
+
 
         try {
-            Path chatUploadPath = Paths.get(uploadDir, "chat");
+            Path chatUploadPath = Paths.get(uploadDir, "chat","room_"+roomId);
             Files.createDirectories(chatUploadPath);
 
             String originalName = StringUtils.cleanPath(
@@ -1011,7 +1024,7 @@ public class RoomController {
             Path targetPath = chatUploadPath.resolve(storedName);
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
-            String relativeUrl = "/uploads/chat/" + storedName;
+            String relativeUrl = "/uploads/chat/room_" + roomId + "/" + storedName;
 
             UploadPhotoResponse response = new UploadPhotoResponse(
                     relativeUrl,

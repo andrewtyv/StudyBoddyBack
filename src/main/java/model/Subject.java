@@ -18,6 +18,6 @@ public enum Subject {
     DISCRETE_MATH,
     EMBEDDED_DEVELOPMENT,
     TZIV,
-    MATHANALYSYS,
-    PPI_dontrespectit,
+    MATH_ANALYSYS,
+    PPI,
 }
