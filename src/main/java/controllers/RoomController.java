@@ -1,13 +1,22 @@
 package controllers;
 
 import DTO.*;
+import io.jsonwebtoken.io.IOException;
 import model.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import repos.*;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.time.ZoneId;
 import java.util.Base64;
 
 import java.security.Principal;
@@ -60,6 +69,15 @@ public class RoomController {
     FriendshipRepo friendshipRepo;
 
 
+    @Value("${app.upload.dir:uploads}")
+    private String uploadDir;
+
+    private static final Set<String> ALLOWED_TYPES = Set.of(
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/webp"
+    );
     /**
      * Creates a direct room between the authenticated user and another user.
      *
@@ -818,11 +836,27 @@ public class RoomController {
             )
     })
     @PostMapping("/enter")
-    public ApiResponseWrapper<List<MessageDTO>> enterRoom(Principal principal, @RequestBody Map<String, String> api) {
+    public ApiResponseWrapper<List<MessageDTO>> enterRoom(
+            Principal principal,
+            @RequestBody Map<String, String> api
+    ) {
         User me = userRepo.findByUsername(principal.getName());
-        Long roomId = Long.parseLong(api.get("id"));
-        Optional<Room> room = roomRepo.findById(roomId);
+        if (me == null) {
+            return ApiResponseWrapper.error("user not found");
+        }
 
+        if (api == null || api.get("id") == null || api.get("id").isBlank()) {
+            return ApiResponseWrapper.error("room id is required");
+        }
+
+        Long roomId;
+        try {
+            roomId = Long.parseLong(api.get("id"));
+        } catch (NumberFormatException e) {
+            return ApiResponseWrapper.error("invalid room id");
+        }
+
+        Optional<Room> room = roomRepo.findById(roomId);
         if (room.isEmpty()) {
             return ApiResponseWrapper.error("room with provided id not found");
         }
@@ -832,21 +866,19 @@ public class RoomController {
             return ApiResponseWrapper.error("you are not a member of this room");
         }
 
+        List<Message> messages = messageRepo.findByRoom_IdOrderByCreatedAtAsc(roomId);
         List<MessageDTO> dto = new ArrayList<>();
-        List<Message> messages = messageRepo.findByRoom_IdOrderByCreatedAtAsc(room.get().getId());
 
         for (Message message : messages) {
-            String photoUrl = null;
-            if (message.getMessageType() == MessageType.PHOTO) {
-                photoUrl = "/room/message/" + message.getId() + "/photo";
-            }
-
             dto.add(new MessageDTO(
                     message.getId(),
                     message.getContent(),
                     message.getMessageType(),
                     message.getSender().getUsername(),
-                    photoUrl
+                    message.getCreatedAt(),
+                    message.getPhotoUrl(),
+                    message.getPhotoName(),
+                    message.getPhotoContentType()
             ));
         }
 
@@ -863,78 +895,59 @@ public class RoomController {
      * and the message is broadcast to subscribers of the room topic.</p>
      *
      * @param principal authenticated user
-     * @param api map containing {@code roomId}, {@code content}, and {@code messageType}
      */
     @Operation(
             summary = "Send room message over WebSocket",
             description = "WebSocket endpoint for sending a message to a room. Payload should contain roomId, content, and messageType."
     )
-    @MessageMapping("send-message")
-    public void sendMessage(Principal principal, Map<String, String> api) {
+    @MessageMapping("/send-message")
+    public void sendMessage(Principal principal, SendMessageRequest req) {
         User me = userRepo.findByUsername(principal.getName());
         if (me == null) {
             return;
         }
 
-        String content = api.get("content");
-        String roomIdRaw = api.get("roomId");
-        String messageTypeRaw = api.get("messageType");
-        String fileName = api.get("fileName");
-        String contentType = api.get("contentType");
-
-        if (roomIdRaw == null || messageTypeRaw == null) {
+        if (req == null || req.getRoomId() == null || req.getMessageType() == null) {
             return;
         }
 
-        Long roomId;
-        try {
-            roomId = Long.parseLong(roomIdRaw);
-        } catch (NumberFormatException e) {
-            return;
-        }
-
-        Optional<Room> roomOpt = roomRepo.findById(roomId);
+        Optional<Room> roomOpt = roomRepo.findById(req.getRoomId());
         if (roomOpt.isEmpty()) {
             return;
         }
 
-        if (!roomMemberRepo.existsByRoom_IdAndUser_Id(roomId, me.getId())) {
+        if (!roomMemberRepo.existsByRoom_IdAndUser_Id(req.getRoomId(), me.getId())) {
             return;
         }
 
         MessageType messageType;
         try {
-            messageType = MessageType.valueOf(messageTypeRaw);
+            messageType = MessageType.valueOf(req.getMessageType().trim().toUpperCase());
         } catch (IllegalArgumentException e) {
             return;
         }
 
         Room room = roomOpt.get();
+
         Message message = new Message();
         message.setUser(me);
         message.setRoom(room);
         message.setMessageType(messageType);
 
         if (messageType == MessageType.TEXT) {
-            if (content == null || content.isBlank()) {
+            if (req.getContent() == null || req.getContent().isBlank()) {
                 return;
             }
-
-            message.setContent(content);
+            message.setContent(req.getContent().trim());
         } else if (messageType == MessageType.PHOTO) {
-            if (content == null || content.isBlank()) {
+            if (req.getContent() == null || req.getContent().isBlank()) {
                 return;
             }
 
-            try {
-                byte[] imageBytes = Base64.getDecoder().decode(content);
-                message.setPhotoData(imageBytes);
-                message.setPhotoName(fileName);
-                message.setPhotoContentType(contentType);
-                message.setContent("[PHOTO]");
-            } catch (IllegalArgumentException e) {
-                return;
-            }
+            message.setContent("[PHOTO]");
+            message.setPhotoUrl(req.getContent().trim());
+            message.setPhotoName(req.getFileName());
+            message.setPhotoContentType(req.getContentType());
         } else {
             return;
         }
@@ -950,12 +963,13 @@ public class RoomController {
             }
         }
 
-        messageRecipientRepo.saveAll(recipients);
-
-        String photoUrl = null;
-        if (message.getMessageType() == MessageType.PHOTO) {
-            photoUrl = "/room/message/" + message.getId() + "/photo";
+        if (!recipients.isEmpty()) {
+            messageRecipientRepo.saveAll(recipients);
         }
+        LocalDateTime createdAt = LocalDateTime.ofInstant(
+                message.getCreatedAt(),
+                ZoneId.systemDefault()
+        );
 
         MessageWsDTO dto = new MessageWsDTO(
                 message.getId(),
@@ -963,87 +977,65 @@ public class RoomController {
                 me.getUsername(),
                 message.getContent(),
                 message.getMessageType(),
-                message.getCreatedAt(),
-                photoUrl
+                createdAt,
+                message.getPhotoUrl(),
+                message.getPhotoContentType(),
+                message.getPhotoName()
         );
 
         messagingTemplate.convertAndSend("/topic/rooms/" + room.getId(), dto);
     }
 
-    @PostMapping("/test-photo")
-    public ApiResponseWrapper<String> testPhoto(
-            Principal principal,
-            @RequestParam("roomId") Long roomId,
-            @RequestParam("file") MultipartFile file
-    ) {
-        User me = userRepo.findByUsername(principal.getName());
-        if (me == null) {
-            return ApiResponseWrapper.error("user not found");
+    @PostMapping("/upload-photo")
+    public ResponseEntity<?> uploadPhoto(@RequestParam("file") MultipartFile file) throws Exception {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body("File is empty");
         }
 
-        Optional<Room> roomOpt = roomRepo.findById(roomId);
-        if (roomOpt.isEmpty()) {
-            return ApiResponseWrapper.error("room not found");
-        }
-
-        if (!roomMemberRepo.existsByRoom_IdAndUser_Id(roomId, me.getId())) {
-            return ApiResponseWrapper.error("you are not a member of this room");
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_TYPES.contains(contentType.toLowerCase())) {
+            return ResponseEntity.badRequest().body("Only jpg, jpeg, png, webp are allowed");
         }
 
         try {
-            Message message = new Message();
-            message.setMessageType(MessageType.PHOTO);
-            message.setUser(me);
-            message.setRoom(roomOpt.get());
-            message.setContent("[PHOTO]");
-            message.setPhotoData(file.getBytes());
-            message.setPhotoName(file.getOriginalFilename());
-            message.setPhotoContentType(file.getContentType());
+            Path chatUploadPath = Paths.get(uploadDir, "chat");
+            Files.createDirectories(chatUploadPath);
 
-            messageRepo.save(message);
+            String originalName = StringUtils.cleanPath(
+                    file.getOriginalFilename() == null ? "photo.jpg" : file.getOriginalFilename()
+            );
 
-            return ApiResponseWrapper.ok("photo saved, messageId = " + message.getId());
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ApiResponseWrapper.error("failed to save photo: " + e.getMessage());
+            String extension = getExtension(originalName, contentType);
+            String storedName = UUID.randomUUID() + extension;
+
+            Path targetPath = chatUploadPath.resolve(storedName);
+            Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+
+            String relativeUrl = "/uploads/chat/" + storedName;
+
+            UploadPhotoResponse response = new UploadPhotoResponse(
+                    relativeUrl,
+                    originalName,
+                    contentType
+            );
+
+            return ResponseEntity.ok(response);
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().body("Upload failed");
         }
     }
 
-    @GetMapping("/message/{messageId}/photo")
-    public ResponseEntity<byte[]> getPhoto(
-            Principal principal,
-            @PathVariable Long messageId
-    ) {
-        Optional<Message> messageOpt = messageRepo.findById(messageId);
-        if (messageOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
+    private String getExtension(String originalName, String contentType) {
+        int dotIndex = originalName.lastIndexOf(".");
+        if (dotIndex >= 0 && dotIndex < originalName.length() - 1) {
+            return originalName.substring(dotIndex);
         }
 
-        Message message = messageOpt.get();
-
-        User me = userRepo.findByUsername(principal.getName());
-        if (me == null) {
-            return ResponseEntity.status(401).build();
-        }
-
-        if (!roomMemberRepo.existsByRoom_IdAndUser_Id(message.getRoom().getId(), me.getId())) {
-            return ResponseEntity.status(403).build();
-        }
-
-        if (message.getMessageType() != MessageType.PHOTO || message.getPhotoData() == null) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        return ResponseEntity.ok()
-                .header("Content-Type",
-                        message.getPhotoContentType() != null
-                                ? message.getPhotoContentType()
-                                : "application/octet-stream")
-                .header("Content-Disposition",
-                        "inline; filename=\"" +
-                                (message.getPhotoName() != null ? message.getPhotoName() : "image") +
-                                "\"")
-                .body(message.getPhotoData());
+        return switch (contentType.toLowerCase()) {
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            default -> ".jpg";
+        };
     }
 
     @Operation(

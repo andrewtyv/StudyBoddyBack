@@ -31,10 +31,9 @@ public class Message {
 
     @Column(nullable = false)
     private java.time.Instant createdAt = java.time.Instant.now();
-//    @Lob
-//    @Basic(fetch = FetchType.LAZY)
-    @Column(name = "photo_data", columnDefinition = "bytea")
-    private byte[] photoData;
+
+    @Column(name = "photo_url")
+    private String photoUrl;
 
     @Column(name = "photo_name")
     private String photoName;
@@ -53,6 +52,10 @@ public class Message {
     }
 
     public void setUser(User sender) { this.sender = sender; }
+
+    public String getPhotoUrl() {
+        return photoUrl;
+    }
 
     public void setMessageType(MessageType messageType){
         this.messageType =messageType;
@@ -84,14 +87,6 @@ public class Message {
         this.room = room;
     }
 
-    public byte[] getPhotoData() {
-        return photoData;
-    }
-
-    public void setPhotoData(byte[] photoData) {
-        this.photoData = photoData;
-    }
-
     public String getPhotoName() {
         return photoName;
     }
@@ -102,6 +97,10 @@ public class Message {
 
     public String getPhotoContentType() {
         return photoContentType;
+    }
+
+    public void setPhotoUrl(String photoUrl) {
+        this.photoUrl = photoUrl;
     }
 
     public void setPhotoContentType(String photoContentType) {
