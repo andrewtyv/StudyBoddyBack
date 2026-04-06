@@ -55,6 +55,15 @@ public class User {
     @Enumerated(EnumType.STRING)
     private java.util.Set<Subject> subjects = new java.util.HashSet<>();
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
+    @Column(name = "location_updated_at")
+    private LocalDateTime locationUpdatedAt;
+
     // ===== Constructors =====
 
     public User() {
@@ -140,6 +149,17 @@ public class User {
         return avatarUrl;
     }
 
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public LocalDateTime getLocationUpdatedAt() {
+        return locationUpdatedAt;
+    }
 
     // ===== Setters =====
 
@@ -197,5 +217,17 @@ public class User {
 
     public void setAvatarUrl(String picture) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+
+    public void setLocationUpdatedAt(LocalDateTime locationUpdatedAt) {
+        this.locationUpdatedAt = locationUpdatedAt;
     }
 }
