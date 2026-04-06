@@ -42,6 +42,12 @@ public class User {
     @Column(name = "faculty", length = 255)
     private String faculty;
 
+    @Column(name = "google_sub", unique = true, length = 255)
+    private String googleSub;
+
+    @Column(name = "avatar_url", length = 1000)
+    private String avatarUrl;
+
     @ElementCollection(targetClass = Subject.class, fetch = FetchType.EAGER)
     @CollectionTable(name = "user_subjects", joinColumns = @JoinColumn(name = "user_id"))
 
@@ -125,6 +131,15 @@ public class User {
         return faculty;
     }
 
+    public String getGoogleSub() {
+        return googleSub;
+    }
+
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
 
     // ===== Setters =====
 
@@ -176,5 +191,11 @@ public class User {
 
     public void setSubjects(java.util.Set<Subject> subjects) {
         this.subjects = subjects;
+    }
+
+    public void setGoogleSub(String googleSub) { this.googleSub = googleSub; }
+
+    public void setAvatarUrl(String picture) {
+        this.avatarUrl = avatarUrl;
     }
 }

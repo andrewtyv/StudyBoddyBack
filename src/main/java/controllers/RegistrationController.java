@@ -1,7 +1,11 @@
 package controllers;
 
 import DTO.ApiResponse;
+import DTO.ApiResponseWrapper;
+import DTO.UserDTO;
+import model.User;
 import model.UserRole;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import repos.UserRepo;
@@ -17,7 +21,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 
+import java.text.Normalizer;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -41,6 +53,9 @@ public class RegistrationController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private GoogleIdTokenVerifier googleIdTokenVerifier;
+
     /**
      * Register a new user in the system.
      *
@@ -52,7 +67,7 @@ public class RegistrationController {
      * @param request map containing the registration data:
      *                {@code username}, {@code email}, {@code password}
      * @return an {@link ApiResponse} containing the result message and generated token,
-     *         if registration fails, the token is {@code null}
+     * if registration fails, the token is {@code null}
      */
     @Operation(
             summary = "Register a new user",
@@ -100,10 +115,10 @@ public class RegistrationController {
 
 
         if (userRepo.existsByEmail(email) || userRepo.existsByUsername(username)) {
-            return new ApiResponse("User with this username or email already exists ",null);
+            return new ApiResponse("User with this username or email already exists ", null);
         }
 
-        model.User user = new model.User( email,username,passwordEncoder.encode(password));
+        model.User user = new model.User(email, username, passwordEncoder.encode(password));
         user.setRole(UserRole.STUDENT);
         userRepo.save(user);
 
@@ -111,6 +126,7 @@ public class RegistrationController {
 
         return new ApiResponse("Registration successful. Please validate your email.", token);
     }
+
     /**
      * Authenticates an existing user.
      *
@@ -122,7 +138,7 @@ public class RegistrationController {
      * @param request map containing the login data:
      *                {@code username} and {@code password}
      * @return an {@link ApiResponse} containing the result message and generated token,
-     *         if authentication fails, the token is {@code null}
+     * if authentication fails, the token is {@code null}
      */
     @Operation(
             summary = "Login user",
@@ -165,12 +181,157 @@ public class RegistrationController {
         String username = request.get("username");
         String password = request.get("password").trim();
 
-        model.User user =userRepo.findByUsername(username);
+        model.User user = userRepo.findByUsername(username);
         if (user != null && passwordEncoder.matches(password, user.getPassword())) {            //String token = jwtUtil.generateToken(username);
             String token = jwtUtil.generateToken(username);
-            return new ApiResponse("Login succesfull",token);
+            return new ApiResponse("Login succesfull", token);
         }
         return new ApiResponse("invalid login or password", null);
     }
 
+    @PostMapping("/google")
+    public ApiResponseWrapper<UserDTO> googleLogin(@RequestBody Map<String, String> request) {
+        String idTokenString = safeTrim(request.get("idToken"));
+
+        if (idTokenString == null || idTokenString.isBlank()) {
+            return ApiResponseWrapper.error("Google ID token is missing");
+        }
+
+        GoogleIdToken.Payload payload;
+        try {
+            payload = verifyGoogleIdToken(idTokenString);
+        } catch (Exception e) {
+            return ApiResponseWrapper.error("Failed to verify Google token");
+        }
+
+        if (payload == null) {
+            return ApiResponseWrapper.error("Invalid Google token");
+        }
+
+        String googleSub = safeTrim(payload.getSubject());
+        String email = normalizeEmail(payload.getEmail());
+        boolean emailVerified = Boolean.TRUE.equals(payload.getEmailVerified());
+        String name = safeTrim((String) payload.get("name"));
+        String picture = safeTrim((String) payload.get("picture"));
+
+        if (googleSub == null || googleSub.isBlank() || email == null || email.isBlank()) {
+            return ApiResponseWrapper.error("Google token does not contain required user data");
+        }
+
+        User user = userRepo.findByGoogleSub(googleSub).orElse(null);
+
+        if (user == null) {
+            User existingByEmail = userRepo.findByEmail(email);
+
+            if (existingByEmail != null) {
+                if (existingByEmail.getGoogleSub() != null
+                        && !existingByEmail.getGoogleSub().equals(googleSub)) {
+                    return ApiResponseWrapper.error("This email is already linked to another Google account");
+                }
+
+                user = existingByEmail;
+                user.setGoogleSub(googleSub);
+            } else {
+                user = new User();
+                user.setEmail(email);
+                user.setUsername(generateUniqueUsername(name, email));
+                user.setPassword(null);
+                user.setStatus("ACTIVE");
+                user.setEnabled(true);
+                user.setRole(UserRole.STUDENT);
+                user.setGoogleSub(googleSub);
+                user.setCreatedAt(LocalDateTime.now());
+            }
+        }
+
+        if ((user.getStatus() == null || user.getStatus().isBlank())
+                || "PENDING_VERIFICATION".equalsIgnoreCase(user.getStatus())) {
+            user.setStatus("ACTIVE");
+        }
+
+        if (user.getEnabled() == null) {
+            user.setEnabled(true);
+        }
+
+        if (picture != null && !picture.isBlank()) {
+            user.setAvatarUrl(picture);
+        }
+
+        if (emailVerified && user.getEmailVerifiedAt() == null) {
+            user.setEmailVerifiedAt(LocalDateTime.now());
+        }
+
+        userRepo.save(user);
+
+        String token = jwtUtil.generateToken(user.getUsername());
+
+        return new ApiResponseWrapper<>(
+                true,
+                "Google login successful",
+                toUserDTO(user),
+                token
+        );
+    }
+
+    private GoogleIdToken.Payload verifyGoogleIdToken(String idTokenString) throws Exception {
+        GoogleIdToken idToken = googleIdTokenVerifier.verify(idTokenString);
+        return idToken != null ? idToken.getPayload() : null;
+    }
+
+    private UserDTO toUserDTO(User user) {
+        UserDTO dto = new UserDTO();
+        dto.setId(user.getId());
+        dto.setEmail(user.getEmail());
+        dto.setUsername(user.getUsername());
+        dto.setPassword(null);
+        dto.setStatus(user.getStatus());
+        dto.setEmailVerifiedAt(user.getEmailVerifiedAt());
+        dto.setEnabled(user.getEnabled());
+        dto.setCreatedAt(user.getCreatedAt());
+        dto.setRole(user.getRole());
+        dto.setInstitute(user.getInstitute());
+        dto.setFaculty(user.getFaculty());
+        dto.setSubjects(user.getSubjects());
+        return dto;
+    }
+
+    private String generateUniqueUsername(String googleName, String email) {
+        String raw = (googleName != null && !googleName.isBlank())
+                ? googleName
+                : email.substring(0, email.indexOf('@'));
+
+        String normalized = Normalizer.normalize(raw, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+
+        String base = normalized
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", "_")
+                .replaceAll("^_+|_+$", "");
+
+        if (base.isBlank()) {
+            base = "user";
+        }
+
+        String candidate = base;
+        int suffix = 1;
+
+        while (userRepo.existsByUsername(candidate)) {
+            candidate = base + "_" + suffix;
+            suffix++;
+        }
+
+        return candidate;
+    }
+
+    private String safeTrim(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private String normalizeEmail(String email) {
+        String trimmed = safeTrim(email);
+        return trimmed == null ? null : trimmed.toLowerCase(Locale.ROOT);
+    }
 }
+
+
+
