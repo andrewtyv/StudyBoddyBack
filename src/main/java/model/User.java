@@ -65,6 +65,14 @@ public class User {
     @Column(name = "google_sub", unique = true, length = 255)
     private String googleSub;
 
+    @Column(name = "dark_mode")
+    private Boolean darkMode;
+
+    @Column(name = "high_contrast")
+    private Boolean highContrast;
+
+    @Column(name = "shareLocation")
+    private Boolean shareLocation;
     // ===== Constructors =====
 
 
@@ -97,6 +105,30 @@ public class User {
         this.emailVerifiedAt = emailVerifiedAt;
         this.enabled = enabled;
         this.createdAt = createdAt;
+    }
+
+    public Boolean getDarkMode() {
+        return darkMode;
+    }
+
+    public Boolean getHighContrast() {
+        return highContrast;
+    }
+
+    public Boolean getShareLocation() {
+        return shareLocation;
+    }
+
+    public void setHighContrast(Boolean highContrast) {
+        this.highContrast = highContrast;
+    }
+
+    public void setShareLocation(Boolean shareLocation) {
+        this.shareLocation = shareLocation;
+    }
+
+    public void setDarkMode(Boolean darkMode) {
+        this.darkMode = darkMode;
     }
 
     public String getGoogleSub() {
