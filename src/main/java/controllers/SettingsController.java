@@ -302,6 +302,7 @@ public class SettingsController {
         return ApiResponseWrapper.ok("updated successfully");
     }
 
+
     @GetMapping("/card")
     public ApiResponseWrapper<StudentProfileDTO> getMyCard(Principal principal) {
         User me = userRepo.findByUsername(principal.getName());
@@ -377,6 +378,15 @@ public class SettingsController {
         };
     }
 
+    @GetMapping("/avatar")
+    public ApiResponseWrapper<String> getAvatar(Principal principal){
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("user doesnt exist");
+        }
+        return ApiResponseWrapper.ok(me.getPhotoUrl());
+    }
+
     @PutMapping("/settings")
     public ApiResponseWrapper<String> setSettings(Principal principal,@RequestBody SettingsDTO dto){
         User me = userRepo.findByUsername(principal.getName());
@@ -398,6 +408,12 @@ public class SettingsController {
 
         if (dto.getShareLocation() != null)
             me.setShareLocation(dto.getShareLocation());
+        if(dto.getStudyReminderEnabled() == Boolean.TRUE && dto.getStudyReminderHour() !=null && dto.getStudyReminderMinute()!= null)
+        {
+            me.setStudyReminderMinute(dto.getStudyReminderMinute());
+            me.setStudyReminderHour(dto.getStudyReminderHour());
+            me.setStudyReminderEnabled(dto.getStudyReminderEnabled());
+        }
 
         userRepo.save(me);
 
@@ -412,7 +428,7 @@ public class SettingsController {
             return ApiResponseWrapper.error("this user doesn't exist");
         }
         return ApiResponseWrapper.ok(
-                new SettingsDTO(me.getDarkMode(),me.getHighContrast(),me.getShareLocation())
+                new SettingsDTO(me.getDarkMode(),me.getHighContrast(),me.getShareLocation(), me.getStudyReminderEnabled(),me.getStudyReminderHour(),me.getStudyReminderMinute())
         );
     }
 

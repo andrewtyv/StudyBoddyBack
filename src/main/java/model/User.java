@@ -38,18 +38,6 @@ public class User {
     @Column(name = "role", nullable = false, length = 20)
     private UserRole role = UserRole.STUDENT;
 
-    @Column(name = "institute", length = 255)
-    private String institute;
-
-    @Column(name = "faculty", length = 255)
-    private String faculty;
-
-    @ElementCollection(targetClass = Subject.class, fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_subjects", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "subject", nullable = false)
-    @Enumerated(EnumType.STRING)
-    private Set<Subject> subjects = new HashSet<>();
-
     @Column
     String photoUrl;
 
@@ -73,6 +61,17 @@ public class User {
 
     @Column(name = "shareLocation")
     private Boolean shareLocation;
+
+    @Column
+    private Boolean studyReminderEnabled = false;
+
+    @Column
+    private Integer studyReminderHour;
+
+    @Column
+    private Integer studyReminderMinute;
+
+
     // ===== Constructors =====
 
 
@@ -205,13 +204,6 @@ public class User {
 
     public UserRole getRole() { return role; }
 
-    public String getInstitute() {
-        return institute;
-    }
-
-    public String getFaculty() {
-        return faculty;
-    }
 
 
 
@@ -249,19 +241,27 @@ public class User {
 
     public void setRole(UserRole role) { this.role = role; }
 
-    public void setInstitute(String institute) {
-        this.institute = institute;
+    public Boolean getStudyReminderEnabled() {
+        return studyReminderEnabled;
     }
 
-    public void setFaculty(String faculty) {
-        this.faculty = faculty;
+    public Integer getStudyReminderHour() {
+        return studyReminderHour;
     }
 
-    public java.util.Set<Subject> getSubjects() {
-        return subjects;
+    public Integer getStudyReminderMinute() {
+        return studyReminderMinute;
     }
 
-    public void setSubjects(java.util.Set<Subject> subjects) {
-        this.subjects = subjects;
+    public void setStudyReminderEnabled(Boolean studyReminderEnabled) {
+        this.studyReminderEnabled = studyReminderEnabled;
+    }
+
+    public void setStudyReminderHour(Integer studyReminderHour) {
+        this.studyReminderHour = studyReminderHour;
+    }
+
+    public void setStudyReminderMinute(Integer studyReminderMinute) {
+        this.studyReminderMinute = studyReminderMinute;
     }
 }
