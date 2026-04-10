@@ -225,11 +225,11 @@ public class User {
         this.faculty = faculty;
     }
 
-    public java.util.Set<Subject> getSubjects() {
+    public Set<Subject> getSubjects() {
         return subjects;
     }
 
-    public void setSubjects(java.util.Set<Subject> subjects) {
+    public void setSubjects(Set<Subject> subjects) {
         this.subjects = subjects;
     }
 }

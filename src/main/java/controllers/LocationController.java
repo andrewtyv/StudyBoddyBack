@@ -9,6 +9,8 @@ import repos.UserRepo;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
 
 @RestController
 @RequestMapping("/user/location")
@@ -20,7 +22,7 @@ public class LocationController {
     }
 
     @PutMapping
-    public ApiResponseWrapper<UserLocationDTO> updateMyLocation(
+    public ApiResponseWrapper<String> updateMyLocation(
             Principal principal,
             @RequestBody LocationUpdateRequestDTO request
     ) {
@@ -56,7 +58,7 @@ public class LocationController {
         return new ApiResponseWrapper<>(
                 true,
                 "Location updated successfully",
-                toDto(user),
+                null,
                 null
         );
     }
@@ -80,6 +82,48 @@ public class LocationController {
                 true,
                 "Location fetched successfully",
                 toDto(user),
+                null
+        );
+    }
+
+    @GetMapping("/nearby")
+    public ApiResponseWrapper<List<UserLocationDTO>> getNearbyUsers(Principal principal) {
+        if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
+            return ApiResponseWrapper.error("Unauthorized");
+        }
+
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("User not found");
+        }
+
+        if (me.getLatitude() == null || me.getLongitude() == null) {
+            return ApiResponseWrapper.error("Your location is not set");
+        }
+
+        double myLat = me.getLatitude();
+        double myLon = me.getLongitude();
+
+        List<UserLocationDTO> result = userRepo.findAll().stream()
+                .filter(user -> !user.getId().equals(me.getId()))
+                .filter(user -> user.getLatitude() != null && user.getLongitude() != null)
+                .map(user -> {
+                    UserLocationDTO dto = toDto(user);
+                    dto.setDistanceKm(roundTo3(haversineKm(
+                            myLat,
+                            myLon,
+                            user.getLatitude(),
+                            user.getLongitude()
+                    )));
+                    return dto;
+                })
+                .sorted(Comparator.comparing(UserLocationDTO::getDistanceKm))
+                .toList();
+
+        return new ApiResponseWrapper<>(
+                true,
+                "Nearby users fetched successfully",
+                result,
                 null
         );
     }
@@ -115,6 +159,26 @@ public class LocationController {
                 user.getLongitude(),
                 user.getLocationUpdatedAt()
         );
+    }
+
+    private double haversineKm(double lat1, double lon1, double lat2, double lon2) {
+        final double earthRadiusKm = 6371.0;
+
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1))
+                * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2)
+                * Math.sin(dLon / 2);
+
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return earthRadiusKm * c;
+    }
+
+    private double roundTo3(double value) {
+        return Math.round(value * 1000.0) / 1000.0;
     }
 }
 
