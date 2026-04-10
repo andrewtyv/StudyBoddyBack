@@ -9,14 +9,19 @@ public class FriendshipDTO {
     private String username;
     private String status;
     private LocalDateTime createdAt;
+    private String photoUrl;
 
     public FriendshipDTO() {
     }
+    public  FriendshipDTO(Long id, String username, String status, LocalDateTime createdAt,String photoUrl) {
+        this.id = id;
+        this.username = username;
+        this.status = status;
+        this.createdAt = createdAt;
+        this.photoUrl = photoUrl;
+    }
 
-    public FriendshipDTO(Long id,
-                         String username,
-                         String status,
-                         LocalDateTime createdAt) {
+    public FriendshipDTO(Long id, String username, String status, LocalDateTime createdAt) {
         this.id = id;
         this.username = username;
         this.status = status;
