@@ -439,12 +439,19 @@ public class FriendshipController {
                             fr.getRequester().getId().equals(user.getId())
                                     ? fr.getAddressee().getUsername()
                                     : fr.getRequester().getUsername();
+                    String friendPhotoUrl =
+                            fr.getRequester().getId().equals(user.getId())
+                                    ? fr.getAddressee().getPhotoUrl()
+                                    : fr.getRequester().getPhotoUrl();
+
 
                     return new FriendshipDTO(
                             fr.getId(),
                             friendUsername,
                             fr.getStatus().toString(),
-                            fr.getFriendshipSentAt()
+                            fr.getFriendshipSentAt(),
+                            friendPhotoUrl
+
                     );
                 })
                 .toList();
