@@ -1,6 +1,7 @@
 package controllers;
 
 import DTO.ApiResponseWrapper;
+import DTO.SettingsDTO;
 import DTO.StudentProfileDTO;
 import DTO.UserDTO;
 import model.StudentProfile;
@@ -375,6 +376,48 @@ public class SettingsController {
             default -> ".jpg";
         };
     }
+
+    @PutMapping("/settings")
+    public ApiResponseWrapper<String> setSettings(Principal principal,@RequestBody SettingsDTO dto){
+        User me = userRepo.findByUsername(principal.getName());
+
+        if (me == null) {
+            return ApiResponseWrapper.error("this user doesn't exist");
+        }
+
+        if (dto.getDarkMode() == null && dto.getHighContrast() == null && dto.getShareLocation() ==null) {
+            return ApiResponseWrapper.error("all nulls");
+        }
+
+
+        if (dto.getDarkMode() != null)
+            me.setDarkMode(dto.getDarkMode());
+
+        if (dto.getHighContrast() != null)
+            me.setHighContrast(dto.getHighContrast());
+
+        if (dto.getShareLocation() != null)
+            me.setShareLocation(dto.getShareLocation());
+
+        userRepo.save(me);
+
+        return ApiResponseWrapper.ok("data set");
+    }
+
+    @GetMapping("/settings")
+    public ApiResponseWrapper<SettingsDTO> getSettings(Principal principal){
+        User me = userRepo.findByUsername(principal.getName());
+
+        if (me == null) {
+            return ApiResponseWrapper.error("this user doesn't exist");
+        }
+        return ApiResponseWrapper.ok(
+                new SettingsDTO(me.getDarkMode(),me.getHighContrast(),me.getShareLocation())
+        );
+    }
+
+
+
 
 
 
