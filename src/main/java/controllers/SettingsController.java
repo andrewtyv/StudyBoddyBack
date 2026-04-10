@@ -385,7 +385,7 @@ public class SettingsController {
             return ApiResponseWrapper.error("this user doesn't exist");
         }
 
-        if (dto.getDarkMode() == null && dto.getHighContrast() == null && dto.getShareLocation() ==null) {
+        if (dto.getDarkMode() == null && dto.getHighContrast() == null && dto.getShareLocation() ==null && dto.getPushNotifications() == null) {
             return ApiResponseWrapper.error("all nulls");
         }
 
@@ -398,6 +398,10 @@ public class SettingsController {
 
         if (dto.getShareLocation() != null)
             me.setShareLocation(dto.getShareLocation());
+
+        if (dto.getPushNotifications() != null) {
+            me.setPushNotificationsEnabled(dto.getPushNotifications());
+        }
 
         userRepo.save(me);
 
@@ -412,14 +416,41 @@ public class SettingsController {
             return ApiResponseWrapper.error("this user doesn't exist");
         }
         return ApiResponseWrapper.ok(
-                new SettingsDTO(me.getDarkMode(),me.getHighContrast(),me.getShareLocation())
+                new SettingsDTO(me.getDarkMode(),me.getHighContrast(),me.getShareLocation(), me.getPushNotificationsEnabled())
         );
     }
 
+    @PutMapping("/push-token")
+    public ApiResponseWrapper<String> savePushToken(Principal principal, @RequestBody java.util.Map<String, String> body
+    ) {
+        User me = userRepo.findByUsername(principal.getName());
 
+        if (me == null) {
+            return ApiResponseWrapper.error("user not found");
+        }
 
+        if (body == null || body.get("expoPushToken") == null || body.get("expoPushToken").isBlank()) {
+            return ApiResponseWrapper.error("expoPushToken is required");
+        }
 
+        me.setExpoPushToken(body.get("expoPushToken").trim());
+        userRepo.save(me);
+        return ApiResponseWrapper.ok("push token saved");
+    }
 
+    @DeleteMapping("/push-token")
+    public ApiResponseWrapper<String> clearPushToken(Principal principal) {
+        User me = userRepo.findByUsername(principal.getName());
+
+        if (me == null) {
+            return ApiResponseWrapper.error("user not found");
+        }
+
+        me.setExpoPushToken(null);
+        userRepo.save(me);
+
+        return ApiResponseWrapper.ok("push token cleared");
+    }
 
 }
 

@@ -13,7 +13,7 @@ import java.util.Comparator;
 import java.util.List;
 
 @RestController
-@RequestMapping("/user/location")
+@RequestMapping("/location")
 public class LocationController {
     private final UserRepo userRepo;
 
@@ -21,7 +21,7 @@ public class LocationController {
         this.userRepo = userRepo;
     }
 
-    @PutMapping
+    @PutMapping("/updateLocation")
     public ApiResponseWrapper<String> updateMyLocation(
             Principal principal,
             @RequestBody LocationUpdateRequestDTO request

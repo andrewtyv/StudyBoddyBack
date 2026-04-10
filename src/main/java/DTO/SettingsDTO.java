@@ -5,11 +5,13 @@ public class SettingsDTO {
     private Boolean darkMode;
     private Boolean highContrast;
     private Boolean shareLocation;
+    private Boolean pushNotifications;
 
-    public SettingsDTO(Boolean darkMode, Boolean highContrast, Boolean shareLocation){
+    public SettingsDTO(Boolean darkMode, Boolean highContrast, Boolean shareLocation, Boolean pushNotifications){
         this.darkMode = darkMode;
         this.shareLocation = shareLocation;
         this.highContrast = highContrast;
+        this.pushNotifications = pushNotifications;
     }
 
     public void setDarkMode(Boolean darkMode) {
@@ -24,6 +26,10 @@ public class SettingsDTO {
         this.shareLocation = shareLocation;
     }
 
+    public void setPushNotifications(Boolean pushNotifications) {
+        this.pushNotifications = pushNotifications;
+    }
+
     public Boolean getDarkMode(){
         return this.darkMode;
     }
@@ -33,4 +39,5 @@ public class SettingsDTO {
     public Boolean getShareLocation(){
         return this.shareLocation;
     }
+    public Boolean getPushNotifications() {return this.pushNotifications;}
 }

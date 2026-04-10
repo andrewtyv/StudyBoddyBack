@@ -73,6 +73,12 @@ public class User {
 
     @Column(name = "shareLocation")
     private Boolean shareLocation;
+
+    @Column(name = "expo_push_token", length = 255)
+    private String expoPushToken;
+
+    @Column(name = "push_notifications_enabled")
+    private Boolean pushNotificationsEnabled = true;
     // ===== Constructors =====
 
 
@@ -133,6 +139,22 @@ public class User {
 
     public String getGoogleSub() {
         return googleSub;
+    }
+
+    public String getExpoPushToken() {
+        return expoPushToken;
+    }
+
+    public void setExpoPushToken(String expoPushToken) {
+        this.expoPushToken = expoPushToken;
+    }
+
+    public Boolean getPushNotificationsEnabled() {
+        return pushNotificationsEnabled;
+    }
+
+    public void setPushNotificationsEnabled(Boolean pushNotificationsEnabled) {
+        this.pushNotificationsEnabled = pushNotificationsEnabled;
     }
 
     public void setGoogleSub(String googleSub) {
