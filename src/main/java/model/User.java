@@ -62,14 +62,20 @@ public class User {
     @Column(name = "shareLocation")
     private Boolean shareLocation;
 
-    @Column
+    @Column(name = "reminder_enabled")
     private Boolean studyReminderEnabled = false;
 
-    @Column
+    @Column(name = "reminder_hour")
     private Integer studyReminderHour;
 
-    @Column
+    @Column(name = "reminder_minute")
     private Integer studyReminderMinute;
+
+    @Column(name = "expo_push_token", length = 255)
+    private String expoPushToken;
+
+    @Column(name = "push_notifications_enabled")
+    private Boolean pushNotificationsEnabled = true;
 
 
     // ===== Constructors =====
@@ -120,6 +126,22 @@ public class User {
 
     public void setHighContrast(Boolean highContrast) {
         this.highContrast = highContrast;
+    }
+
+    public String getExpoPushToken() {
+        return expoPushToken;
+    }
+
+    public void setExpoPushToken(String expoPushToken) {
+        this.expoPushToken = expoPushToken;
+    }
+
+    public Boolean getPushNotificationsEnabled() {
+        return pushNotificationsEnabled;
+    }
+
+    public void setPushNotificationsEnabled(Boolean pushNotificationsEnabled) {
+        this.pushNotificationsEnabled = pushNotificationsEnabled;
     }
 
     public void setShareLocation(Boolean shareLocation) {

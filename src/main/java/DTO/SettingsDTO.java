@@ -8,15 +8,17 @@ public class SettingsDTO {
     private Boolean studyReminderEnabled;
     private Integer studyReminderHour;
     private Integer studyReminderMinute;
+    private Boolean pushNotifications;
 
 
-    public SettingsDTO(Boolean darkMode, Boolean highContrast, Boolean shareLocation, Boolean studyReminderEnabled,Integer studyReminderHour, Integer studyReminderMinute){
+    public SettingsDTO(Boolean darkMode, Boolean highContrast, Boolean shareLocation, Boolean studyReminderEnabled,Integer studyReminderHour, Integer studyReminderMinute, Boolean pushNotifications){
         this.darkMode = darkMode;
         this.shareLocation = shareLocation;
         this.highContrast = highContrast;
         this.studyReminderEnabled =studyReminderEnabled;
         this.studyReminderHour =studyReminderHour;
         this.studyReminderMinute = studyReminderMinute;
+        this.pushNotifications = pushNotifications;
     }
 
     public Boolean getStudyReminderEnabled() {
@@ -30,6 +32,12 @@ public class SettingsDTO {
     public Integer getStudyReminderMinute() {
         return studyReminderMinute;
     }
+
+    public void setPushNotifications(Boolean pushNotifications) {
+        this.pushNotifications = pushNotifications;
+    }
+
+    public Boolean getPushNotifications() {return this.pushNotifications;}
 
     public void setStudyReminderHour(Integer studyReminderHour) {
         this.studyReminderHour = studyReminderHour;
