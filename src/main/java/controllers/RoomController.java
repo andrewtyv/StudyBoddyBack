@@ -530,8 +530,8 @@ public class RoomController {
 
     }
     @Operation(
-            summary = "Accept room invite",
-            description = "Accepts a pending room invite for the authenticated user and adds the user to the room."
+            summary = "Decline room invite",
+            description = "Declines a pending room invite for the authenticated user."
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -614,8 +614,8 @@ public class RoomController {
          * @return an {@link ApiResponseWrapper} containing the list of direct rooms
          */
         @Operation(
-                summary = "Decline room invite",
-                description = "Declines a pending room invite for the authenticated user."
+                summary = "Get all rooms",
+                description = "Returns all rooms of the authenticated user together with unread message counts."
         )
         @ApiResponses(value = {
                 @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -720,8 +720,8 @@ public class RoomController {
      * @return an {@link ApiResponseWrapper} containing the result of the operation
      */
     @Operation(
-            summary = "Get all rooms",
-            description = "Returns all rooms of the authenticated user together with unread message counts."
+            summary = "Mark room messages as read",
+            description = "Marks all unread messages in the specified room as read for the authenticated user."
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -992,7 +992,62 @@ public class RoomController {
 
         messagingTemplate.convertAndSend("/topic/rooms/" + room.getId(), dto);
     }
-
+    @Operation(
+            summary = "Upload room photo",
+            description = "Uploads an image file for a room message. Only room members can upload. Allowed formats: jpg, jpeg, png, webp."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Photo uploaded successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "fileUrl": "/uploads/chat/room_12/abc123.jpg",
+                                          "fileName": "photo.jpg",
+                                          "contentType": "image/jpeg"
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                        "File is empty"
+                                        """),
+                                    @ExampleObject(value = """
+                                        "User not found"
+                                        """),
+                                    @ExampleObject(value = """
+                                        "Only jpg, jpeg, png, webp are allowed"
+                                        """),
+                                    @ExampleObject(value = """
+                                        "Room not found"
+                                        """),
+                                    @ExampleObject(value = """
+                                        "Upload failed"
+                                        """)
+                            }
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "Authenticated user is not a member of the room",
+                    content = @Content(
+                            mediaType = "text/plain",
+                            examples = @ExampleObject(
+                                    value = "Not a member of this room"
+                            )
+                    )
+            )
+    })
     @PostMapping("/upload-photo")
     public ResponseEntity<?> uploadPhoto(Principal principal, @RequestParam("file") MultipartFile file, @RequestParam("roomId") Long roomId){
         if (file == null || file.isEmpty()) {

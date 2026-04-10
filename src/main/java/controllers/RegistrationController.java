@@ -42,6 +42,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/auth")
+@Tag(name = "Authentication", description = "Endpoints for registration, login, and Google SSO authentication")
 public class RegistrationController {
 
     @Autowired
@@ -188,7 +189,88 @@ public class RegistrationController {
         }
         return new ApiResponse("invalid login or password", null);
     }
-
+    @Operation(
+            summary = "Login with Google",
+            description = "Verifies a Google ID token, finds or creates the corresponding user, and returns the application's JWT token."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Google login successful",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "Google login successful",
+                                          "data": {
+                                            "id": 5,
+                                            "email": "nazar@gmail.com",
+                                            "username": "nazar",
+                                            "password": null,
+                                            "status": "ACTIVE",
+                                            "emailVerifiedAt": "2026-04-10T21:00:00",
+                                            "enabled": true,
+                                            "createdAt": "2026-04-10T21:00:00",
+                                            "role": "STUDENT"
+                                          },
+                                          "token": "jwt_token_here"
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Google token validation error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "Google ID token is missing",
+                                          "data": null,
+                                          "token": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "Failed to verify Google token",
+                                          "data": null,
+                                          "token": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "Invalid Google token",
+                                          "data": null,
+                                          "token": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "Google token does not contain required user data",
+                                          "data": null,
+                                          "token": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "This email is already linked to another Google account",
+                                          "data": null,
+                                          "token": null
+                                        }
+                                        """)
+                            }
+                    )
+            )
+    })
     @PostMapping("/google")
     public ApiResponseWrapper<UserDTO> googleLogin(@RequestBody Map<String, String> request) {
         String idTokenString = safeTrim(request.get("idToken"));

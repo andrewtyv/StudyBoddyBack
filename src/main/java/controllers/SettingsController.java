@@ -302,7 +302,55 @@ public class SettingsController {
         return ApiResponseWrapper.ok("updated successfully");
     }
 
-
+    @Operation(
+            summary = "Get my student card",
+            description = "Returns the authenticated user's student profile card."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Student profile returned successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "ok",
+                                          "data": {
+                                            "school": "STU",
+                                            "faculty": "FIIT",
+                                            "subjects": ["JAVA", "DATABASES", "NETWORKS"]
+                                          }
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "User or profile not found",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "user not found",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "profile not found",
+                                          "data": null
+                                        }
+                                        """)
+                            }
+                    )
+            )
+    })
     @GetMapping("/card")
     public ApiResponseWrapper<StudentProfileDTO> getMyCard(Principal principal) {
         User me = userRepo.findByUsername(principal.getName());
@@ -319,7 +367,65 @@ public class SettingsController {
 
         return ApiResponseWrapper.ok(new StudentProfileDTO(profile));
     }
-
+    @Operation(
+            summary = "Upload avatar",
+            description = "Uploads a new avatar image for the authenticated user. Allowed formats: jpg, jpeg, png, webp."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Avatar uploaded successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "ok",
+                                          "data": "/uploads/user-avatar/user_5/abc123.jpg"
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation or upload error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "user not found",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "file is empty",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "only jpg, jpeg, png, webp are allowed",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "upload failed",
+                                          "data": null
+                                        }
+                                        """)
+                            }
+                    )
+            )
+    })
     @PostMapping("/upload-avatar")
     public ApiResponseWrapper<String> uploadAvatar(
             Principal principal,
@@ -377,7 +483,44 @@ public class SettingsController {
             default -> ".jpg";
         };
     }
-
+    @Operation(
+            summary = "Get my avatar",
+            description = "Returns the avatar URL of the authenticated user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Avatar URL returned successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "ok",
+                                          "data": "/uploads/user-avatar/user_5/abc123.jpg"
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Authenticated user not found",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": false,
+                                          "message": "user doesnt exist",
+                                          "data": null
+                                        }
+                                        """
+                            )
+                    )
+            )
+    })
     @GetMapping("/avatar")
     public ApiResponseWrapper<String> getAvatar(Principal principal){
         User me = userRepo.findByUsername(principal.getName());
@@ -386,7 +529,51 @@ public class SettingsController {
         }
         return ApiResponseWrapper.ok(me.getPhotoUrl());
     }
-
+    @Operation(
+            summary = "Update user settings",
+            description = "Updates the authenticated user's accessibility, privacy, reminder, and push notification settings."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Settings updated successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "ok",
+                                          "data": "data set"
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation or lookup error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "this user doesn't exist",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "all nulls",
+                                          "data": null
+                                        }
+                                        """)
+                            }
+                    )
+            )
+    })
     @PutMapping("/settings")
     public ApiResponseWrapper<String> setSettings(Principal principal,@RequestBody SettingsDTO dto){
         User me = userRepo.findByUsername(principal.getName());
@@ -423,7 +610,52 @@ public class SettingsController {
 
         return ApiResponseWrapper.ok("data set");
     }
-
+    @Operation(
+            summary = "Get user settings",
+            description = "Returns the authenticated user's current settings."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Settings returned successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "ok",
+                                          "data": {
+                                            "darkMode": true,
+                                            "highContrast": false,
+                                            "shareLocation": true,
+                                            "studyReminderEnabled": true,
+                                            "studyReminderHour": 18,
+                                            "studyReminderMinute": 30,
+                                            "pushNotifications": true
+                                          }
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Authenticated user not found",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": false,
+                                          "message": "this user doesn't exist",
+                                          "data": null
+                                        }
+                                        """
+                            )
+                    )
+            )
+    })
     @GetMapping("/settings")
     public ApiResponseWrapper<SettingsDTO> getSettings(Principal principal){
         User me = userRepo.findByUsername(principal.getName());
@@ -436,7 +668,51 @@ public class SettingsController {
         );
     }
 
-
+    @Operation(
+            summary = "Save Expo push token",
+            description = "Saves or updates the Expo push token for the authenticated user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Push token saved successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "ok",
+                                          "data": "push token saved"
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation or lookup error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "user not found",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "expoPushToken is required",
+                                          "data": null
+                                        }
+                                        """)
+                            }
+                    )
+            )
+    })
     @PutMapping("/push-token")
     public ApiResponseWrapper<String> savePushToken(Principal principal, @RequestBody java.util.Map<String, String> body
     ) {
@@ -454,7 +730,44 @@ public class SettingsController {
         userRepo.save(me);
         return ApiResponseWrapper.ok("push token saved");
     }
-
+    @Operation(
+            summary = "Clear Expo push token",
+            description = "Deletes the saved Expo push token for the authenticated user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Push token cleared successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "ok",
+                                          "data": "push token cleared"
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Authenticated user not found",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": false,
+                                          "message": "user not found",
+                                          "data": null
+                                        }
+                                        """
+                            )
+                    )
+            )
+    })
     @DeleteMapping("/push-token")
     public ApiResponseWrapper<String> clearPushToken(Principal principal) {
         User me = userRepo.findByUsername(principal.getName());
