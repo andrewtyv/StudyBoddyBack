@@ -32,6 +32,10 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.web.client.RestTemplate;
 
 /**
  * Controller responsible for room and messaging operations.
@@ -71,6 +75,8 @@ public class RoomController {
 
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     private static final Set<String> ALLOWED_TYPES = Set.of(
             "image/jpeg",
@@ -960,6 +966,7 @@ public class RoomController {
         for (RoomMember member : members) {
             if (!member.getUser().getId().equals(me.getId())) {
                 recipients.add(new MessageRecipient(member.getUser(), message));
+                sendExpoPush(member.getUser(), me, room, message);
             }
         }
 
@@ -1406,6 +1413,57 @@ public class RoomController {
         return ApiResponseWrapper.ok("Joined room successfully");
     }
 
+    private void sendExpoPush(User recipient, User sender, Room room, Message message) {
+        try {
+            if (recipient == null) {
+                return;
+            }
 
+            if (recipient.getExpoPushToken() == null || recipient.getExpoPushToken().isBlank()) {
+                return;
+            }
+
+            if (recipient.getPushNotificationsEnabled() != null && !recipient.getPushNotificationsEnabled()) {
+                return;
+            }
+
+            String bodyText;
+            if (message.getMessageType() == MessageType.PHOTO) {
+                bodyText = sender.getUsername() + " sent a photo";
+            } else {
+                String content = message.getContent() == null ? "" : message.getContent().trim();
+                if (content.length() > 100) {
+                    content = content.substring(0, 100) + "...";
+                }
+                bodyText = sender.getUsername() + ": " + content;
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("type", "chat_message");
+            data.put("roomId", room.getId());
+            data.put("senderUsername", sender.getUsername());
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("to", recipient.getExpoPushToken());
+            payload.put("title", "StudyBuddy");
+            payload.put("body", bodyText);
+            payload.put("sound", "default");
+            payload.put("data", data);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+
+            restTemplate.postForEntity(
+                    "https://exp.host/--/api/v2/push/send",
+                    request,
+                    String.class
+            );
+
+        } catch (Exception e) {
+            System.out.println("PUSH SEND ERROR: " + e.getMessage());
+        }
+    }
 
 }

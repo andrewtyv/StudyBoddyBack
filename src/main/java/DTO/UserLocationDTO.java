@@ -9,6 +9,7 @@ public class UserLocationDTO {
     private Double latitude;
     private Double longitude;
     private LocalDateTime updatedAt;
+    private Double distanceKm;
 
     public UserLocationDTO() {
     }
@@ -19,6 +20,7 @@ public class UserLocationDTO {
         this.latitude = latitude;
         this.longitude = longitude;
         this.updatedAt = updatedAt;
+        this.distanceKm = distanceKm;
     }
 
     public Long getUserId() {
@@ -41,6 +43,10 @@ public class UserLocationDTO {
         return updatedAt;
     }
 
+    public Double getDistanceKm() {
+        return distanceKm;
+    }
+
     public void setUserId(Long userId) {
         this.userId = userId;
     }
@@ -59,5 +65,9 @@ public class UserLocationDTO {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public void setDistanceKm(Double distanceKm) {
+        this.distanceKm = distanceKm;
     }
 }
