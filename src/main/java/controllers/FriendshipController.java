@@ -591,7 +591,65 @@ public class FriendshipController {
         return friendship;
     }
 
-
+    @Operation(
+            summary = "Cancel outgoing friendship request",
+            description = "Cancels an outgoing pending friendship request created by the authenticated user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Friendship request canceled successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "ok",
+                                          "data": "request canceled"
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation or lookup error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "invalid usernames",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "user not found",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "request not found",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "request is not pending",
+                                          "data": null
+                                        }
+                                        """)
+                            }
+                    )
+            )
+    })
     @PutMapping("/friend-requests/cancel")
     public ApiResponseWrapper<String> cancelFriendshipRequest(Principal principal, @RequestBody Map<String, String> api) {
         String requesterUsername = principal.getName();

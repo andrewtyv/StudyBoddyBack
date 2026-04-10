@@ -12,15 +12,81 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/location")
+@Tag(name = "Location", description = "Endpoints for updating and retrieving user geolocation")
 public class LocationController {
     private final UserRepo userRepo;
 
     public LocationController(UserRepo userRepo) {
         this.userRepo = userRepo;
     }
-
+    @Operation(
+            summary = "Update my location",
+            description = "Updates the authenticated user's current latitude and longitude."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Location updated successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "Location updated successfully",
+                                          "data": null,
+                                          "token": null
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "Latitude and longitude are required",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "Latitude must be between -90 and 90",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "Longitude must be between -180 and 180",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "User not found",
+                                          "data": null
+                                        }
+                                        """)
+                            }
+                    )
+            )
+    })
     @PutMapping("/updateLocation")
     public ApiResponseWrapper<String> updateMyLocation(
             Principal principal,
@@ -62,7 +128,58 @@ public class LocationController {
                 null
         );
     }
-
+    @Operation(
+            summary = "Get my location",
+            description = "Returns the authenticated user's saved location."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Location fetched successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "Location fetched successfully",
+                                          "data": {
+                                            "userId": 5,
+                                            "username": "nazar",
+                                            "latitude": 48.1486,
+                                            "longitude": 17.1077,
+                                            "updatedAt": "2026-04-10T21:30:00"
+                                          },
+                                          "token": null
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Location not available",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "User not found",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "Location not set",
+                                          "data": null
+                                        }
+                                        """)
+                            }
+                    )
+            )
+    })
     @GetMapping("/me")
     public ApiResponseWrapper<UserLocationDTO> getMyLocation(Principal principal) {
         if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
@@ -85,7 +202,69 @@ public class LocationController {
                 null
         );
     }
-
+    @Operation(
+            summary = "Get nearby users",
+            description = "Returns all users with saved location ordered from nearest to farthest relative to the authenticated user."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Nearby users fetched successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "Nearby users fetched successfully",
+                                          "data": [
+                                            {
+                                              "userId": 7,
+                                              "username": "john",
+                                              "latitude": 48.1501,
+                                              "longitude": 17.1102,
+                                              "updatedAt": "2026-04-10T21:31:00",
+                                              "distanceKm": 0.284
+                                            },
+                                            {
+                                              "userId": 12,
+                                              "username": "anna",
+                                              "latitude": 48.1700,
+                                              "longitude": 17.1500,
+                                              "updatedAt": "2026-04-10T21:32:00",
+                                              "distanceKm": 3.912
+                                            }
+                                          ],
+                                          "token": null
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Location unavailable for current user",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "User not found",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "Your location is not set",
+                                          "data": null
+                                        }
+                                        """)
+                            }
+                    )
+            )
+    })
     @GetMapping("/nearby")
     public ApiResponseWrapper<List<UserLocationDTO>> getNearbyUsers(Principal principal) {
         if (principal == null || principal.getName() == null || principal.getName().isBlank()) {
@@ -127,7 +306,65 @@ public class LocationController {
                 null
         );
     }
-
+    @Operation(
+            summary = "Get location of a specific user",
+            description = "Returns the saved location of the specified user by username."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Location fetched successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "Location fetched successfully",
+                                          "data": {
+                                            "userId": 7,
+                                            "username": "john",
+                                            "latitude": 48.1501,
+                                            "longitude": 17.1102,
+                                            "updatedAt": "2026-04-10T21:31:00"
+                                          },
+                                          "token": null
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation or lookup error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "Username is required",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "User not found",
+                                          "data": null
+                                        }
+                                        """),
+                                    @ExampleObject(value = """
+                                        {
+                                          "success": false,
+                                          "message": "Location not set",
+                                          "data": null
+                                        }
+                                        """)
+                            }
+                    )
+            )
+    })
     @GetMapping("/{username}")
     public ApiResponseWrapper<UserLocationDTO> getUserLocation(@PathVariable String username) {
         if (username == null || username.isBlank()) {
