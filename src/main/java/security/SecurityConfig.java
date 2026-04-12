@@ -30,8 +30,10 @@ public class SecurityConfig {
                         .requestMatchers("/user/**").authenticated()
                         .requestMatchers("/room/**").authenticated()
                         .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/ws-sockjs/**").permitAll()
                         .requestMatchers("/blog/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
+                        .requestMatchers("/location/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/chat/upload-photo").authenticated()
                         .requestMatchers(
                                 "/swagger-ui/**",
