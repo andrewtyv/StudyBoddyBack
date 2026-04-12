@@ -705,7 +705,63 @@ public class RoomController {
         return ApiResponseWrapper.ok(dto);
     }
 
+    @DeleteMapping("/delete-member")
+    public ApiResponseWrapper<String> deleteMember(Principal principal, @RequestBody Map<String, String> api) {
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("User not found");
+        }
 
+        Long roomId = Long.parseLong(api.get("room_id"));
+        String username = api.get("username");
+
+        if (roomId == null || username == null) {
+            return ApiResponseWrapper.error("room_id and username are required");
+        }
+
+
+        Room room = roomRepo.findById(roomId).orElse(null);
+        if (room == null) {
+            return ApiResponseWrapper.error("Room not found");
+        }
+
+        if (room.getRoomType() == RoomType.DIRECT) {
+            return ApiResponseWrapper.error("Can't delete member from direct room");
+        }
+
+        User enemy = userRepo.findByUsername(username);
+        if (enemy == null) {
+            return ApiResponseWrapper.error("User to delete not found");
+        }
+
+        if (me.getId().equals(enemy.getId())) {
+            return ApiResponseWrapper.error("You cannot delete yourself");
+        }
+
+        boolean meInRoom = roomMemberRepo.existsByRoom_IdAndUser_Id(roomId, me.getId());
+        boolean targetInRoom = roomMemberRepo.existsByRoom_IdAndUser_Id(roomId, enemy.getId());
+
+        if (!meInRoom || !targetInRoom) {
+            return ApiResponseWrapper.error("You or target user are not members of this group");
+        }
+
+        RoomMember memberMe = roomMemberRepo.findByRoom_IdAndUser_Id(roomId, me.getId());
+        if (memberMe == null) {
+            return ApiResponseWrapper.error("Your membership was not found");
+        }
+
+        if (memberMe.getRole() == RoomMemberRole.MEMBER) {
+            return ApiResponseWrapper.error("Member can't delete another member");
+        }
+
+        RoomMember targetMember = roomMemberRepo.findByRoom_IdAndUser_Id(roomId, enemy.getId());
+        if (targetMember == null) {
+            return ApiResponseWrapper.error("Target membership not found");
+        }
+
+        roomMemberRepo.delete(targetMember);
+        return ApiResponseWrapper.ok("Deleted successfully");
+    }
 
 
     /**
