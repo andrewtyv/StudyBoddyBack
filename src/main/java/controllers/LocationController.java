@@ -21,7 +21,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RestController
 @RequestMapping("/location")
 @Tag(name = "Location", description = "Endpoints for updating and retrieving user geolocation")
-public class LocationController {
+public class    LocationController {
     private final UserRepo userRepo;
 
     public LocationController(UserRepo userRepo) {

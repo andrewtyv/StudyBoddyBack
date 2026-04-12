@@ -704,7 +704,148 @@ public class RoomController {
         }
         return ApiResponseWrapper.ok(dto);
     }
-
+    @Operation(
+            summary = "Delete member from group room",
+            description = "Removes a user from a group room. Only room owner or admin can delete another member. This operation is not allowed for direct rooms and the authenticated user cannot delete themselves."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Member deleted successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": null,
+                                          "data": "Deleted successfully",
+                                          "token": null
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation, permission, or lookup error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "missing_fields",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "room_id and username are required",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "room_not_found",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "Room not found",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "direct_room",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "Can't delete member from direct room",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "target_user_not_found",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "User to delete not found",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "delete_yourself",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "You cannot delete yourself",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "not_members",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "You or target user are not members of this group",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "my_membership_missing",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "Your membership was not found",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "member_cannot_delete",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "Member can't delete another member",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "target_membership_missing",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "Target membership not found",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "user_not_found",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "User not found",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    )
+                            }
+                    )
+            )
+    })
     @DeleteMapping("/delete-member")
     public ApiResponseWrapper<String> deleteMember(Principal principal, @RequestBody Map<String, String> api) {
         User me = userRepo.findByUsername(principal.getName());

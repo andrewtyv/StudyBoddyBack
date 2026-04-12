@@ -225,8 +225,21 @@ public class SettingsController {
                                     value = """
                                             {
                                               "success": true,
-                                              "message": "updated successfully",
-                                              "data": null
+                                              "message": "ok",
+                                              "data": {
+                                                "id": 5,
+                                                "email": "nazar@example.com",
+                                                "username": "nazar",
+                                                "password": null,
+                                                "status": "ONLINE",
+                                                "emailVerifiedAt": "2026-03-31T10:00:00",
+                                                "enabled": true,
+                                                "createdAt": "2026-03-20T15:30:00",
+                                                "role": "STUDENT",
+                                                "institute": "STU",
+                                                "faculty": "FIIT",
+                                                "subjects": "Java, Spring, Databases"
+                                              }
                                             }
                                             """
                             )
