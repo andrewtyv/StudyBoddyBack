@@ -847,7 +847,7 @@ public class SettingsController {
     }
 
     @DeleteMapping("/block-user")
-    public ApiResponseWrapper<String> unblockUser(Principal principal, Map<String,String> api) {
+    public ApiResponseWrapper<String> unblockUser(Principal principal, @RequestBody Map<String,String> api) {
         User me = userRepo.findByUsername(principal.getName());
         User nowFriend = userRepo.findByUsername(api.get("username"));
 
