@@ -4,15 +4,16 @@ import DTO.ApiResponseWrapper;
 import DTO.SettingsDTO;
 import DTO.StudentProfileDTO;
 import DTO.UserDTO;
-import model.StudentProfile;
-import model.User;
-import model.UserRole;
+import model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.parameters.P;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import repos.FriendshipRepo;
 import repos.StudentProfileRepo;
+import repos.UserBlockRepo;
 import repos.UserRepo;
 
 import java.io.IOException;
@@ -21,6 +22,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.Principal;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -40,6 +43,12 @@ public class SettingsController {
 
     @Autowired
     StudentProfileRepo studentProfileRepo;
+
+    @Autowired
+    UserBlockRepo userBlockRepo;
+
+    @Autowired
+    FriendshipRepo friendshipRepo;
 
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
@@ -783,6 +792,79 @@ public class SettingsController {
     }
 
 
+
+    @PostMapping("/block-user")
+    public ApiResponseWrapper<String> blockUser(
+            Principal principal,
+            @RequestBody Map<String, String> api
+    ) {
+        User me = userRepo.findByUsername(principal.getName());
+        User enemy = userRepo.findByUsername(api.get("username"));
+
+        if (me == null || enemy == null) {
+            return ApiResponseWrapper.error("user doesn't exist");
+        }
+
+        if (me.getId().equals(enemy.getId())) {
+            return ApiResponseWrapper.error("you cannot block yourself");
+        }
+
+        if (userBlockRepo.existsByBlockedAndBlocker(enemy, me)) {
+            return ApiResponseWrapper.error("you already blocked this user");
+        }
+
+        if (userBlockRepo.existsByBlockedAndBlocker(me, enemy)) {
+            return ApiResponseWrapper.error("this user has blocked you");
+        }
+
+        UserBlock block = new UserBlock(me,enemy);
+        userBlockRepo.save(block);
+
+        Friendship friendship =
+                friendshipRepo.findByRequester_IdAndAddressee_IdOrRequester_IdAndAddressee_Id(
+                        me.getId(), enemy.getId(),
+                        enemy.getId(), me.getId()
+                );
+
+        if (friendship != null) {
+            friendshipRepo.delete(friendship);
+        }
+
+        return ApiResponseWrapper.ok("blocked successfully");
+    }
+
+    @GetMapping("/block-user")
+    public ApiResponseWrapper<List<UserDTO>> getBlocked(Principal principal){
+
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("u dont exist");
+        }
+        List<UserBlock> blocked = userBlockRepo.findByBlocker(me);
+        return ApiResponseWrapper.ok(blocked.stream().map(
+                    fr-> new UserDTO(fr.getBlocked().getUsername())
+                ).toList());
+    }
+
+    @DeleteMapping("/block-user")
+    public ApiResponseWrapper<String> unblockUser(Principal principal, Map<String,String> api) {
+        User me = userRepo.findByUsername(principal.getName());
+        User nowFriend = userRepo.findByUsername(api.get("username"));
+
+        if (me == null || nowFriend ==null) {
+            return ApiResponseWrapper.error("dont exist");
+        }
+
+        UserBlock block = userBlockRepo.findByBlockedAndAndBlocker(nowFriend,me);
+
+        if (block ==null) {
+            return ApiResponseWrapper.error("u didnt block this user");
+        }
+
+        userBlockRepo.delete(block);
+        return ApiResponseWrapper.ok("unblocked succesfully");
+
+    }
 
 }
 

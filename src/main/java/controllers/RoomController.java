@@ -72,6 +72,9 @@ public class RoomController {
     @Autowired
     FriendshipRepo friendshipRepo;
 
+    @Autowired
+    UserBlockRepo userBlockRepo;
+
 
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
@@ -88,7 +91,7 @@ public class RoomController {
      * Creates a direct room between the authenticated user and another user.
      *
      * <p>The target user is provided in the request body under {@code username}.
-     * If both users exist and are different, a unique direct key is generated.
+     * If both users exist and are different and they havent blocked each other, a unique direct key is generated.
      * If a direct room between the same two users already exists, the existing
      * room is returned instead of creating a new one.</p>
      *
@@ -166,7 +169,6 @@ public class RoomController {
     })
     @PostMapping("/create-direct")
     public ApiResponseWrapper<RoomDTO> createRoom (Principal principal, @RequestBody Map<String,String> body){
-        System.out.println("here direct");
         String username = body.get("username");
         User friend = userRepo.findByUsername(username);
         User me = userRepo.findByUsername(principal.getName());
@@ -176,6 +178,9 @@ public class RoomController {
 
         if (friend.getId().equals(me.getId())) {
             return ApiResponseWrapper.error("cannot create direct room with yourself");
+        }
+        if (userBlockRepo.existsByBlockedAndBlocker(me,friend) || userBlockRepo.existsByBlockedAndBlocker(friend,me)) {
+            return ApiResponseWrapper.error("block error");
         }
 
         String directKey = ((Long)Math.min(friend.getId(), me.getId())).toString()
