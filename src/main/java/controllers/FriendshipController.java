@@ -7,10 +7,12 @@ import DTO.FriendshipDTO;
 import model.Friendship;
 import model.FriendshipStatus;
 import model.User;
+import model.UserBlock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import repos.FriendshipRepo;
+import repos.UserBlockRepo;
 import repos.UserRepo;
 
 import java.security.Principal;
@@ -46,6 +48,9 @@ public class FriendshipController {
     @Autowired
     FriendshipRepo friendshipRepo;
 
+    @Autowired
+    UserBlockRepo userBlockRepo;
+
     /**
      * Creates a new friendship request from the authenticated user to another user.
      *
@@ -73,7 +78,6 @@ public class FriendshipController {
                                     value = """
                                             {
                                               "message": "request successfully created",
-                                              "data": null
                                             }
                                             """
                             )
@@ -108,7 +112,7 @@ public class FriendshipController {
             )
     })
     @PostMapping("/make_request")
-    public ApiResponse makeRequest(Principal principal, @RequestBody Map<String, String> request) {
+    public ApiResponseWrapper<String> makeRequest(Principal principal, @RequestBody Map<String, String> request) {
         String requesterUsername = principal.getName();
         String addresseeUsername = request.get("addressee_username").trim();
 
@@ -118,22 +122,26 @@ public class FriendshipController {
         User addressee = userRepo.findByUsername(addresseeUsername);
 
         if (requester == null || addressee == null) {
-            return new ApiResponse("user not found", null);
+            return ApiResponseWrapper.error("user not found");
         }
 
         if (requester.getId().equals(addressee.getId())) {
-            return new ApiResponse("cannot add yourself", null);
+            return ApiResponseWrapper.error("cannot add yourself");
         }
 
         boolean exists = friendshipRepo.existsByRequester_IdAndAddressee_Id(requester.getId(), addressee.getId())
                 || friendshipRepo.existsByRequester_IdAndAddressee_Id(addressee.getId(), requester.getId());
 
         if (exists) {
-            return new ApiResponse("request already exists", null);
+            return ApiResponseWrapper.error("request already exists");
+        }
+        exists = userBlockRepo.existsByBlockedAndBlocker(requester,addressee) || userBlockRepo.existsByBlockedAndBlocker(addressee,requester);
+        if (exists){
+            return ApiResponseWrapper.error("someone is blocked...");
         }
 
         friendshipRepo.save(new Friendship(requester, addressee));
-        return new ApiResponse("request successfully created", null);
+        return  ApiResponseWrapper.ok("request successfully create");
     }
 
 
