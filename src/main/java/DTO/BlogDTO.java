@@ -10,17 +10,30 @@ public class BlogDTO {
     private Long authorId;
     private String authorUsername;
     private Instant createdAt;
+    private Instant updatedAt;
+    private String clientId;
 
     public BlogDTO() {
     }
 
-    public BlogDTO(Long id, String title, String content, Long authorId, String authorUsername, Instant createdAt) {
+    public BlogDTO(
+            Long id,
+            String title,
+            String content,
+            Long authorId,
+            String authorUsername,
+            Instant createdAt,
+            Instant updatedAt,
+            String clientId
+    ) {
         this.id = id;
         this.title = title;
         this.content = content;
         this.authorId = authorId;
         this.authorUsername = authorUsername;
         this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.clientId = clientId;
     }
 
     public Long getId() {
@@ -47,6 +60,14 @@ public class BlogDTO {
         return this.createdAt;
     }
 
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public String getClientId() {
+        return clientId;
+    }
+
     public void setId(Long id) {
         this.id = id;
     }
@@ -69,5 +90,13 @@ public class BlogDTO {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
     }
 }

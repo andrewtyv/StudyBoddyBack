@@ -1,21 +1,26 @@
 package controllers;
 
-import DTO.*;
-import model.*;
+import DTO.ApiResponseWrapper;
+import DTO.BlogDTO;
+import model.Blog;
+import model.User;
+import model.UserRole;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import repos.*;
+import repos.BlogRepo;
+import repos.UserRepo;
 
 import java.security.Principal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.Parameter;
 
 @RestController
 @RequestMapping("/blog")
@@ -27,32 +32,72 @@ public class BlogController {
 
     @Autowired
     BlogRepo blogRepo;
+
+    private BlogDTO toDto(Blog blog) {
+        return new BlogDTO(
+                blog.getId(),
+                blog.getTitle(),
+                blog.getContent(),
+                blog.getAuthor().getId(),
+                blog.getAuthor().getUsername(),
+                blog.getCreatedAt(),
+                blog.getUpdatedAt(),
+                blog.getClientId()
+        );
+    }
+
     @Operation(
             summary = "Create a blog post",
-            description = "Creates a new blog post for the currently authenticated user."
+            description = "Creates a new blog post for the currently authenticated user. If clientId is provided and the same post was already synchronized before, the existing blog post is returned instead of creating a duplicate."
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200",
-                    description = "Blog post created successfully",
+                    description = "Blog post created successfully or existing synchronized blog returned",
                     content = @Content(
                             mediaType = "application/json",
-                            examples = @ExampleObject(
-                                    value = """
-                                            {
-                                              "success": true,
-                                              "message": "ok",
-                                              "data": {
-                                                "id": 1,
-                                                "title": "My first blog",
-                                                "content": "This is my blog content",
-                                                "authorId": 5,
-                                                "authorUsername": "nazar",
-                                                "createdAt": "2026-03-31T12:30:00"
-                                              }
-                                            }
-                                            """
-                            )
+                            examples = {
+                                    @ExampleObject(
+                                            name = "created",
+                                            value = """
+                                                {
+                                                  "success": true,
+                                                  "message": null,
+                                                  "data": {
+                                                    "id": 1,
+                                                    "title": "My first blog",
+                                                    "content": "This is my blog content",
+                                                    "authorId": 5,
+                                                    "authorUsername": "nazar",
+                                                    "createdAt": "2026-04-13T12:30:00Z",
+                                                    "updatedAt": "2026-04-13T12:30:00Z",
+                                                    "clientId": "550e8400-e29b-41d4-a716-446655440000"
+                                                  },
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "already_synced_same_client_id",
+                                            value = """
+                                                {
+                                                  "success": true,
+                                                  "message": null,
+                                                  "data": {
+                                                    "id": 1,
+                                                    "title": "My first blog",
+                                                    "content": "This is my blog content",
+                                                    "authorId": 5,
+                                                    "authorUsername": "nazar",
+                                                    "createdAt": "2026-04-13T12:30:00Z",
+                                                    "updatedAt": "2026-04-13T12:30:00Z",
+                                                    "clientId": "550e8400-e29b-41d4-a716-446655440000"
+                                                  },
+                                                  "token": null
+                                                }
+                                                """
+                                    )
+                            }
                     )
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -61,20 +106,39 @@ public class BlogController {
                     content = @Content(
                             mediaType = "application/json",
                             examples = {
-                                    @ExampleObject(value = """
-                                            {
-                                              "success": false,
-                                              "message": "title is required",
-                                              "data": null
-                                            }
-                                            """),
-                                    @ExampleObject(value = """
-                                            {
-                                              "success": false,
-                                              "message": "content is required",
-                                              "data": null
-                                            }
-                                            """)
+                                    @ExampleObject(
+                                            name = "user_not_found",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "user not found",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "title_required",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "title is required",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "content_required",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "content is required",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    )
                             }
                     )
             )
@@ -88,6 +152,7 @@ public class BlogController {
 
         String title = body.getTitle();
         String content = body.getContent();
+        String clientId = body.getClientId() != null ? body.getClientId().trim() : null;
 
         if (title == null || title.trim().isBlank()) {
             return ApiResponseWrapper.error("title is required");
@@ -97,23 +162,25 @@ public class BlogController {
             return ApiResponseWrapper.error("content is required");
         }
 
-        Blog blog = new Blog(title.trim(), content.trim(), me);
-        blogRepo.save(blog);
+        if (clientId != null && !clientId.isBlank()) {
+            Optional<Blog> existing = blogRepo.findByClientIdAndAuthor_Id(clientId, me.getId());
+            if (existing.isPresent()) {
+                return ApiResponseWrapper.ok(toDto(existing.get()));
+            }
+        }
 
-        return ApiResponseWrapper.ok(
-                new BlogDTO(
-                        blog.getId(),
-                        blog.getTitle(),
-                        blog.getContent(),
-                        blog.getAuthor().getId(),
-                        blog.getAuthor().getUsername(),
-                        blog.getCreatedAt()
-                )
-        );
+        Blog blog = new Blog(title.trim(), content.trim(), me);
+        if (clientId != null && !clientId.isBlank()) {
+            blog.setClientId(clientId);
+        }
+
+        blogRepo.save(blog);
+        return ApiResponseWrapper.ok(toDto(blog));
     }
+
     @Operation(
             summary = "Get all blog posts",
-            description = "Returns all blog posts. Teacher posts are shown first, then the rest ordered by creation date descending."
+            description = "Returns all blog posts. Teacher posts are shown first, then the remaining posts are ordered by creation date descending."
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -123,29 +190,34 @@ public class BlogController {
                             mediaType = "application/json",
                             examples = @ExampleObject(
                                     value = """
+                                        {
+                                          "success": true,
+                                          "message": null,
+                                          "data": [
                                             {
-                                              "success": true,
-                                              "message": "ok",
-                                              "data": [
-                                                {
-                                                  "id": 1,
-                                                  "title": "Teacher announcement",
-                                                  "content": "Important update",
-                                                  "authorId": 2,
-                                                  "authorUsername": "teacher1",
-                                                  "createdAt": "2026-03-31T10:00:00"
-                                                },
-                                                {
-                                                  "id": 2,
-                                                  "title": "Student post",
-                                                  "content": "Hello everyone",
-                                                  "authorId": 5,
-                                                  "authorUsername": "nazar",
-                                                  "createdAt": "2026-03-30T18:00:00"
-                                                }
-                                              ]
+                                              "id": 1,
+                                              "title": "Teacher announcement",
+                                              "content": "Important update",
+                                              "authorId": 2,
+                                              "authorUsername": "teacher1",
+                                              "createdAt": "2026-04-13T10:00:00Z",
+                                              "updatedAt": "2026-04-13T10:00:00Z",
+                                              "clientId": "teacher-post-1"
+                                            },
+                                            {
+                                              "id": 2,
+                                              "title": "Student post",
+                                              "content": "Hello everyone",
+                                              "authorId": 5,
+                                              "authorUsername": "nazar",
+                                              "createdAt": "2026-04-12T18:00:00Z",
+                                              "updatedAt": "2026-04-12T18:10:00Z",
+                                              "clientId": "550e8400-e29b-41d4-a716-446655440000"
                                             }
-                                            """
+                                          ],
+                                          "token": null
+                                        }
+                                        """
                             )
                     )
             )
@@ -158,30 +230,19 @@ public class BlogController {
             boolean aTeacher = a.getAuthor().getRole() == UserRole.TEACHER;
             boolean bTeacher = b.getAuthor().getRole() == UserRole.TEACHER;
 
-            if (aTeacher && !bTeacher) {
-                return -1;
-            }
-            if (!aTeacher && bTeacher) {
-                return 1;
-            }
+            if (aTeacher && !bTeacher) return -1;
+            if (!aTeacher && bTeacher) return 1;
             return b.getCreatedAt().compareTo(a.getCreatedAt());
         });
 
         List<BlogDTO> dto = new ArrayList<>();
-
         for (Blog blog : blogs) {
-            dto.add(new BlogDTO(
-                    blog.getId(),
-                    blog.getTitle(),
-                    blog.getContent(),
-                    blog.getAuthor().getId(),
-                    blog.getAuthor().getUsername(),
-                    blog.getCreatedAt()
-            ));
+            dto.add(toDto(blog));
         }
 
         return ApiResponseWrapper.ok(dto);
     }
+
     @Operation(
             summary = "Get blog post by ID",
             description = "Returns one blog post by its ID."
@@ -194,19 +255,22 @@ public class BlogController {
                             mediaType = "application/json",
                             examples = @ExampleObject(
                                     value = """
-                                            {
-                                              "success": true,
-                                              "message": "ok",
-                                              "data": {
-                                                "id": 1,
-                                                "title": "My first blog",
-                                                "content": "This is my blog content",
-                                                "authorId": 5,
-                                                "authorUsername": "nazar",
-                                                "createdAt": "2026-03-31T12:30:00"
-                                              }
-                                            }
-                                            """
+                                        {
+                                          "success": true,
+                                          "message": null,
+                                          "data": {
+                                            "id": 1,
+                                            "title": "My first blog",
+                                            "content": "This is my blog content",
+                                            "authorId": 5,
+                                            "authorUsername": "nazar",
+                                            "createdAt": "2026-04-13T12:30:00Z",
+                                            "updatedAt": "2026-04-13T13:00:00Z",
+                                            "clientId": "550e8400-e29b-41d4-a716-446655440000"
+                                          },
+                                          "token": null
+                                        }
+                                        """
                             )
                     )
             ),
@@ -217,12 +281,13 @@ public class BlogController {
                             mediaType = "application/json",
                             examples = @ExampleObject(
                                     value = """
-                                            {
-                                              "success": false,
-                                              "message": "blog not found",
-                                              "data": null
-                                            }
-                                            """
+                                        {
+                                          "success": false,
+                                          "message": "blog not found",
+                                          "data": null,
+                                          "token": null
+                                        }
+                                        """
                             )
                     )
             )
@@ -235,22 +300,12 @@ public class BlogController {
             return ApiResponseWrapper.error("blog not found");
         }
 
-        Blog blog = blogOptional.get();
-
-        return ApiResponseWrapper.ok(
-                new BlogDTO(
-                        blog.getId(),
-                        blog.getTitle(),
-                        blog.getContent(),
-                        blog.getAuthor().getId(),
-                        blog.getAuthor().getUsername(),
-                        blog.getCreatedAt()
-                )
-        );
+        return ApiResponseWrapper.ok(toDto(blogOptional.get()));
     }
+
     @Operation(
             summary = "Update a blog post",
-            description = "Updates an existing blog post. Only the author of the post can update it."
+            description = "Updates an existing blog post. Only the author of the post can update it. If the server version is newer than the client's known version, a conflict message is returned."
     )
     @ApiResponses(value = {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -260,42 +315,108 @@ public class BlogController {
                             mediaType = "application/json",
                             examples = @ExampleObject(
                                     value = """
-                                            {
-                                              "success": true,
-                                              "message": "ok",
-                                              "data": {
-                                                "id": 1,
-                                                "title": "Updated title",
-                                                "content": "Updated content",
-                                                "authorId": 5,
-                                                "authorUsername": "nazar",
-                                                "createdAt": "2026-03-31T12:30:00"
-                                              }
-                                            }
-                                            """
+                                        {
+                                          "success": true,
+                                          "message": null,
+                                          "data": {
+                                            "id": 1,
+                                            "title": "Updated title",
+                                            "content": "Updated content",
+                                            "authorId": 5,
+                                            "authorUsername": "nazar",
+                                            "createdAt": "2026-04-13T12:30:00Z",
+                                            "updatedAt": "2026-04-13T14:20:00Z",
+                                            "clientId": "550e8400-e29b-41d4-a716-446655440000"
+                                          },
+                                          "token": null
+                                        }
+                                        """
                             )
                     )
             ),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "400",
-                    description = "Validation or ownership error",
+                    description = "Validation, ownership, or synchronization conflict error",
                     content = @Content(
                             mediaType = "application/json",
                             examples = {
-                                    @ExampleObject(value = """
-                                            {
-                                              "success": false,
-                                              "message": "blog id is required",
-                                              "data": null
-                                            }
-                                            """),
-                                    @ExampleObject(value = """
-                                            {
-                                              "success": false,
-                                              "message": "you can update only your own blog",
-                                              "data": null
-                                            }
-                                            """)
+                                    @ExampleObject(
+                                            name = "user_not_found",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "user not found",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "blog_id_required",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "blog id is required",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "blog_not_found",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "blog not found",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "not_owner",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "you can update only your own blog",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "title_required",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "title is required",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "content_required",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "content is required",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "conflict",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "conflict: blog was updated on server",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    )
                             }
                     )
             )
@@ -336,21 +457,21 @@ public class BlogController {
             return ApiResponseWrapper.error("content is required");
         }
 
+        if (body.getUpdatedAt() != null && blog.getUpdatedAt() != null) {
+            if (blog.getUpdatedAt().isAfter(body.getUpdatedAt())) {
+                return ApiResponseWrapper.error("conflict: blog was updated on server");
+            }
+        }
+
         blog.setTitle(title.trim());
         blog.setContent(content.trim());
+        blog.setUpdatedAt(Instant.now());
+
         blogRepo.save(blog);
 
-        return ApiResponseWrapper.ok(
-                new BlogDTO(
-                        blog.getId(),
-                        blog.getTitle(),
-                        blog.getContent(),
-                        blog.getAuthor().getId(),
-                        blog.getAuthor().getUsername(),
-                        blog.getCreatedAt()
-                )
-        );
+        return ApiResponseWrapper.ok(toDto(blog));
     }
+
     @Operation(
             summary = "Delete a blog post",
             description = "Deletes a blog post. Only the author of the post can delete it."
@@ -363,12 +484,13 @@ public class BlogController {
                             mediaType = "application/json",
                             examples = @ExampleObject(
                                     value = """
-                                            {
-                                              "success": true,
-                                              "message": "ok",
-                                              "data": "blog deleted"
-                                            }
-                                            """
+                                        {
+                                          "success": true,
+                                          "message": null,
+                                          "data": "blog deleted",
+                                          "token": null
+                                        }
+                                        """
                             )
                     )
             ),
@@ -378,20 +500,50 @@ public class BlogController {
                     content = @Content(
                             mediaType = "application/json",
                             examples = {
-                                    @ExampleObject(value = """
-                                            {
-                                              "success": false,
-                                              "message": "blog id is required",
-                                              "data": null
-                                            }
-                                            """),
-                                    @ExampleObject(value = """
-                                            {
-                                              "success": false,
-                                              "message": "you can delete only your own blog",
-                                              "data": null
-                                            }
-                                            """)
+                                    @ExampleObject(
+                                            name = "user_not_found",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "user not found",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "blog_id_required",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "blog id is required",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "blog_not_found",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "blog not found",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "not_owner",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "you can delete only your own blog",
+                                                  "data": null,
+                                                  "token": null
+                                                }
+                                                """
+                                    )
                             }
                     )
             )

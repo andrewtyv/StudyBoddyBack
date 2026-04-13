@@ -3,12 +3,18 @@ package model;
 import jakarta.persistence.*;
 
 import java.time.Instant;
-import java.util.Set;
 
 @Entity
-@Table(name = "blog_post")
+@Table(
+        name = "blog_post",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = {"user_id", "client_id"})
+        }
+)
 public class Blog {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false, length = 255)
@@ -24,6 +30,12 @@ public class Blog {
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
+    @Column(nullable = false)
+    private Instant updatedAt = Instant.now();
+
+    @Column(name = "client_id", length = 100)
+    private String clientId;
+
     public Blog() {
     }
 
@@ -31,6 +43,13 @@ public class Blog {
         this.title = title;
         this.content = content;
         this.author = author;
+        this.createdAt = Instant.now();
+        this.updatedAt = this.createdAt;
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = Instant.now();
     }
 
     public Long getId() {
@@ -53,6 +72,14 @@ public class Blog {
         return this.createdAt;
     }
 
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public String getClientId() {
+        return clientId;
+    }
+
     public void setTitle(String title) {
         this.title = title;
     }
@@ -64,5 +91,12 @@ public class Blog {
     public void setAuthor(User author) {
         this.author = author;
     }
-}
 
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
+    }
+}
