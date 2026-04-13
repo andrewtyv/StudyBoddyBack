@@ -32,6 +32,10 @@ public class UserBlock {
         this.created_at = LocalDateTime.now();
     }
 
+    public UserBlock() {
+
+    }
+
     public void setBlocked(User blocked) {
         this.blocked = blocked;
     }
