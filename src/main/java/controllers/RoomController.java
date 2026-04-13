@@ -1769,7 +1769,7 @@ public class RoomController {
         if (meMember.getRole()!= RoomMemberRole.OWNER){
             return ApiResponseWrapper.error("Only Owner can change the roles");
         }
-        RoomMemberRole role = RoomMemberRole.valueOf(api.get("rome"));
+        RoomMemberRole role = RoomMemberRole.valueOf(api.get("role"));
         if (role == null || role == RoomMemberRole.OWNER){
             return ApiResponseWrapper.error("role dosent exist or u are trying to add new owner");
         }
