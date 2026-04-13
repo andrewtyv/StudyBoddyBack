@@ -1669,7 +1669,67 @@ public class RoomController {
 
         return ApiResponseWrapper.ok("Joined room successfully");
     }
-
+    @Operation(
+            summary = "Delete room",
+            description = "Deletes a room by its ID. Only a member with OWNER role can delete the room."
+    )
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "Room deleted successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    value = """
+                                        {
+                                          "success": true,
+                                          "message": "ok",
+                                          "data": "deleted succesfully"
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "Validation or permission error",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "null_data",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "null data",
+                                                  "data": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "not_member",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "U are not the member of this group",
+                                                  "data": null
+                                                }
+                                                """
+                                    ),
+                                    @ExampleObject(
+                                            name = "not_owner",
+                                            value = """
+                                                {
+                                                  "success": false,
+                                                  "message": "only owner can delete the group",
+                                                  "data": null
+                                                }
+                                                """
+                                    )
+                            }
+                    )
+            )
+    })
     @DeleteMapping("/delete-room/{room_id}")
     public ApiResponseWrapper<String> deleteRoom(Principal principal, @PathVariable("room_id") Long roomId){
         User me = userRepo.findByUsername(principal.getName());

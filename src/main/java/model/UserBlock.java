@@ -13,12 +13,12 @@ public class UserBlock {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "blocker_id", nullable = false)
     private User blocker;
 
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "blocked_id", nullable = false)
     private User blocked;
 
     @Column
