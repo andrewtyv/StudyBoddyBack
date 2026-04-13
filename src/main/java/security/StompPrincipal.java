@@ -1,7 +1,7 @@
 package security;
 
 import java.security.Principal;
-
+//Chat gpt
 public class StompPrincipal implements Principal {
     private final String name;
 

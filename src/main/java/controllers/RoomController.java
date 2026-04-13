@@ -1670,6 +1670,28 @@ public class RoomController {
         return ApiResponseWrapper.ok("Joined room successfully");
     }
 
+    @DeleteMapping("/delete-room/{room_id}")
+    public ApiResponseWrapper<String> deleteRoom(Principal principal, @PathVariable("room_id") Long roomId){
+        User me = userRepo.findByUsername(principal.getName());
+
+        Room room = roomRepo.findById(roomId).orElse(null);
+
+        if (room ==null || me == null) {
+            return ApiResponseWrapper.error("null data");
+        }
+
+        if (!roomMemberRepo.existsByRoom_IdAndUser_Id(room.getId(),me.getId())) {
+            return ApiResponseWrapper.error("U are not the member of this group");
+        }
+        RoomMember member = roomMemberRepo.findByRoom_IdAndUser_Id(room.getId(),me.getId());
+
+        if(member.getRole() != RoomMemberRole.OWNER) {
+            return ApiResponseWrapper.error("only owner can delete the group");
+        }
+        roomRepo.delete(room);
+        return ApiResponseWrapper.ok("deleted succesfully");
+    }
+
     private void sendExpoPush(User recipient, User sender, Room room, Message message) {
         try {
             if (recipient == null) {

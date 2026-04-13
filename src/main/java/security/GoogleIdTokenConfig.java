@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
 import java.util.stream.Stream;
-
+////Chat gpt
 @Configuration
 public class GoogleIdTokenConfig {
 

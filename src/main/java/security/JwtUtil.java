@@ -36,12 +36,10 @@ public class JwtUtil {
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    /** Найпростіший токен: тільки sub=username */
     public String generateToken(String username) {
         return generateToken(username, Map.of());
     }
 
-    /** Токен з додатковими claims (наприклад roles, userId) */
     public String generateToken(String username, Map<String, Object> extraClaims) {
         Instant now = Instant.now();
         Instant exp = now.plusMillis(expirationMillis);
@@ -60,17 +58,14 @@ public class JwtUtil {
         return builder.compact();
     }
 
-    /** Витягнути username з токена (sub) */
     public String extractUsername(String token) {
         return extractAllClaims(token).getSubject();
     }
 
-    /** Витягнути всі claims (payload) */
     public Claims extractAllClaims(String token) {
         return parseToken(token).getBody();
     }
 
-    /** Перевірити: підпис валідний + не протермінований + (опційно) username збігається */
     public boolean isTokenValid(String token, String expectedUsername) {
         try {
             Claims claims = extractAllClaims(token);
@@ -83,7 +78,6 @@ public class JwtUtil {
         }
     }
 
-    /** Просто перевірити чи токен валідний (підпис + exp) */
     public boolean isTokenValid(String token) {
         try {
             Claims claims = extractAllClaims(token);
@@ -99,10 +93,9 @@ public class JwtUtil {
     }
 
     private Jws<Claims> parseToken(String token) {
-        // JJWT сам кине виняток, якщо підпис/формат/exp не ок
         return Jwts.parserBuilder()
                 .setSigningKey(signingKey)
-                .requireIssuer(issuer) // можна прибрати, якщо не хочеш прив’язку до issuer
+                .requireIssuer(issuer)
                 .build()
                 .parseClaimsJws(token);
     }
