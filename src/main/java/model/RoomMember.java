@@ -50,4 +50,8 @@ public class RoomMember {
         return this.user;
     }
     public RoomMemberRole getRole() { return this.role;}
+
+    public void setRole(RoomMemberRole role) {
+        this.role = role;
+    }
 }

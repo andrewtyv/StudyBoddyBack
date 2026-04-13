@@ -1751,6 +1751,38 @@ public class RoomController {
         roomRepo.delete(room);
         return ApiResponseWrapper.ok("deleted succesfully");
     }
+    @PutMapping("/grant_role")
+    public ApiResponseWrapper<String> grantRole(Principal principal, @RequestBody Map<String,String> api){
+        User me = userRepo.findByUsername(principal.getName());
+
+        Room room = roomRepo.findById(Long.parseLong(api.get("room_id"))).orElse(null);
+
+        User member = userRepo.findByUsername(api.get("username"));
+        if (me == null || room == null || member == null) {
+            return ApiResponseWrapper.error("wrong room or users");
+        }
+        RoomMember meMember = roomMemberRepo.findByRoom_IdAndUser_Id(room.getId(),me.getId());
+
+        if (meMember==null){
+            return ApiResponseWrapper.error("u are not the member of this group");
+        }
+        if (meMember.getRole()!= RoomMemberRole.OWNER){
+            return ApiResponseWrapper.error("Only Owner can change the roles");
+        }
+        RoomMemberRole role = RoomMemberRole.valueOf(api.get("rome"));
+        if (role == null || role == RoomMemberRole.OWNER){
+            return ApiResponseWrapper.error("role dosent exist or u are trying to add new owner");
+        }
+        RoomMember grantMember = roomMemberRepo.findByRoom_IdAndUser_Id(room.getId(),member.getId());
+
+        if (grantMember == null){
+            return ApiResponseWrapper.error("Selected user are not the member of this group");
+        }
+        grantMember.setRole(role);
+        roomMemberRepo.save(grantMember);
+        return ApiResponseWrapper.ok("new role was set");
+
+    }
 
     private void sendExpoPush(User recipient, User sender, Room room, Message message) {
         try {
