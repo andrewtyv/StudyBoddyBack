@@ -59,8 +59,8 @@ public class User {
     @Column(name = "high_contrast")
     private Boolean highContrast;
 
-    @Column(name = "shareLocation")
-    private Boolean shareLocation;
+    @Column(name = "share_location")
+    private Boolean shareLocation = false;
 
     @Column(name = "reminder_enabled")
     private Boolean studyReminderEnabled = false;

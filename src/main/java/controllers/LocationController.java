@@ -116,6 +116,10 @@ public class    LocationController {
             return ApiResponseWrapper.error("User not found");
         }
 
+        if(user.getShareLocation() != true) {
+            return ApiResponseWrapper.error("Share location disabled");
+        }
+
         user.setLatitude(latitude);
         user.setLongitude(longitude);
         user.setLocationUpdatedAt(LocalDateTime.now());
@@ -193,6 +197,10 @@ public class    LocationController {
 
         if (user.getLatitude() == null || user.getLongitude() == null) {
             return ApiResponseWrapper.error("Location not set");
+        }
+
+        if(user.getShareLocation() != true) {
+            return ApiResponseWrapper.error("Share location disabled");
         }
 
         return new ApiResponseWrapper<>(
@@ -274,6 +282,10 @@ public class    LocationController {
         User me = userRepo.findByUsername(principal.getName());
         if (me == null) {
             return ApiResponseWrapper.error("User not found");
+        }
+
+        if(me.getShareLocation() != true) {
+            return ApiResponseWrapper.error("Share location disabled");
         }
 
         if (me.getLatitude() == null || me.getLongitude() == null) {
@@ -380,6 +392,9 @@ public class    LocationController {
             return ApiResponseWrapper.error("Location not set");
         }
 
+        if (!Boolean.TRUE.equals(user.getShareLocation())) {
+            return ApiResponseWrapper.error("Share location disabled");
+        }
         return new ApiResponseWrapper<>(
                 true,
                 "Location fetched successfully",
@@ -394,7 +409,8 @@ public class    LocationController {
                 user.getUsername(),
                 user.getLatitude(),
                 user.getLongitude(),
-                user.getLocationUpdatedAt()
+                user.getLocationUpdatedAt(),
+                user.getRole()
         );
     }
 

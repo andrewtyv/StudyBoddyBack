@@ -1,5 +1,7 @@
 package DTO;
 
+import model.UserRole;
+
 import java.time.LocalDateTime;
 
 public class UserLocationDTO {
@@ -10,17 +12,19 @@ public class UserLocationDTO {
     private Double longitude;
     private LocalDateTime updatedAt;
     private Double distanceKm;
+    private UserRole userRole;
 
     public UserLocationDTO() {
     }
 
-    public UserLocationDTO(Long userId, String username, Double latitude, Double longitude, LocalDateTime updatedAt) {
+    public UserLocationDTO(Long userId, String username, Double latitude, Double longitude, LocalDateTime updatedAt, UserRole userRole) {
         this.userId = userId;
         this.username = username;
         this.latitude = latitude;
         this.longitude = longitude;
         this.updatedAt = updatedAt;
         this.distanceKm = distanceKm;
+        this.userRole = userRole;
     }
 
     public Long getUserId() {
@@ -46,6 +50,8 @@ public class UserLocationDTO {
     public Double getDistanceKm() {
         return distanceKm;
     }
+
+    public UserRole getUserRole() {return userRole; }
 
     public void setUserId(Long userId) {
         this.userId = userId;

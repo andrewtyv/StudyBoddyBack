@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.util.StringUtils;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import repos.*;
 
@@ -36,6 +37,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestTemplate;
+import security.WebSocketRoomPresenceTracker;
 
 /**
  * Controller responsible for room and messaging operations.
@@ -75,6 +77,8 @@ public class RoomController {
     @Autowired
     UserBlockRepo userBlockRepo;
 
+    @Autowired
+    private WebSocketRoomPresenceTracker roomPresenceTracker;
 
     @Value("${app.upload.dir:uploads}")
     private String uploadDir;
@@ -1109,6 +1113,7 @@ public class RoomController {
             description = "WebSocket endpoint for sending a message to a room. Payload should contain roomId, content, and messageType."
     )
     @MessageMapping("/send-message")
+    @Transactional
     public void sendMessage(Principal principal, SendMessageRequest req) {
         User me = userRepo.findByUsername(principal.getName());
         if (me == null) {
@@ -1162,19 +1167,26 @@ public class RoomController {
 
         messageRepo.save(message);
 
-        List<RoomMember> members = roomMemberRepo.findByRoom_Id(room.getId());
+        List<RoomMember> members = roomMemberRepo.findByRoomIdWithUser(room.getId());
         List<MessageRecipient> recipients = new ArrayList<>();
 
         for (RoomMember member : members) {
-            if (!member.getUser().getId().equals(me.getId())) {
-                recipients.add(new MessageRecipient(member.getUser(), message));
-                sendExpoPush(member.getUser(), me, room, message);
+            User recipient = member.getUser();
+            if (recipient == null || recipient.getId().equals(me.getId())) {
+                continue;
+            }
+
+            recipients.add(new MessageRecipient(recipient, message));
+
+            if (!roomPresenceTracker.isUserInRoom(room.getId(), recipient.getUsername())) {
+                sendExpoPush(recipient, me, room, message);
             }
         }
 
         if (!recipients.isEmpty()) {
             messageRecipientRepo.saveAll(recipients);
         }
+
         LocalDateTime createdAt = LocalDateTime.ofInstant(
                 message.getCreatedAt(),
                 ZoneId.systemDefault()

@@ -658,7 +658,7 @@ public class FriendshipController {
                     )
             )
     })
-    @PutMapping("/friend-requests/cancel")
+    @DeleteMapping("/friend-requests/cancel")
     public ApiResponseWrapper<String> cancelFriendshipRequest(Principal principal, @RequestBody Map<String, String> api) {
         String requesterUsername = principal.getName();
         String addresseeUsername = api.get("addressee_username");
