@@ -2,13 +2,12 @@ package controllers;
 
 import DTO.ApiResponseWrapper;
 import DTO.BlogDTO;
-import model.Blog;
-import model.User;
-import model.UserRole;
+import DTO.*;
+import model.*;
+import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import repos.BlogRepo;
-import repos.UserRepo;
+import repos.*;
 
 import java.security.Principal;
 import java.time.Instant;
@@ -33,7 +32,16 @@ public class BlogController {
     @Autowired
     BlogRepo blogRepo;
 
-    private BlogDTO toDto(Blog blog) {
+    @Autowired
+    BlogLikeRepo blogLikeRepo;
+
+    @Autowired
+    BlogCommentRepo blogCommentRepo;
+
+    @Autowired
+    UserBlockRepo userBlockRepo;
+
+    private BlogDTO toDto(Blog blog,long likes, long comments) {
         return new BlogDTO(
                 blog.getId(),
                 blog.getTitle(),
@@ -42,7 +50,9 @@ public class BlogController {
                 blog.getAuthor().getUsername(),
                 blog.getCreatedAt(),
                 blog.getUpdatedAt(),
-                blog.getClientId()
+                blog.getClientId(),
+                likes,
+                comments
         );
     }
 
@@ -165,7 +175,7 @@ public class BlogController {
         if (clientId != null && !clientId.isBlank()) {
             Optional<Blog> existing = blogRepo.findByClientIdAndAuthor_Id(clientId, me.getId());
             if (existing.isPresent()) {
-                return ApiResponseWrapper.ok(toDto(existing.get()));
+                return ApiResponseWrapper.ok(toDto(existing.get(),blogLikeRepo.countByBlogId(existing.get().getId()), blogCommentRepo.countByBlogId(existing.get().getId())));
             }
         }
 
@@ -175,7 +185,7 @@ public class BlogController {
         }
 
         blogRepo.save(blog);
-        return ApiResponseWrapper.ok(toDto(blog));
+        return ApiResponseWrapper.ok(toDto(blog,blogLikeRepo.countByBlogId(blog.getId()), blogCommentRepo.countByBlogId(blog.getId())));
     }
 
     @Operation(
@@ -224,6 +234,10 @@ public class BlogController {
     })
     @GetMapping("/all")
     public ApiResponseWrapper<List<BlogDTO>> getAllBlogs(Principal principal) {
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null){
+            return ApiResponseWrapper.error("u dont have permission");
+        }
         List<Blog> blogs = blogRepo.findAllByOrderByCreatedAtDesc();
 
         blogs.sort((a, b) -> {
@@ -237,7 +251,7 @@ public class BlogController {
 
         List<BlogDTO> dto = new ArrayList<>();
         for (Blog blog : blogs) {
-            dto.add(toDto(blog));
+            dto.add(toDto(blog, blogLikeRepo.countByBlogId(blog.getId()), blogCommentRepo.countByBlogId(blog.getId())));
         }
 
         return ApiResponseWrapper.ok(dto);
@@ -293,14 +307,18 @@ public class BlogController {
             )
     })
     @GetMapping("/{id}")
-    public ApiResponseWrapper<BlogDTO> getBlogById(@PathVariable Long id) {
+    public ApiResponseWrapper<BlogDTO> getBlogById(Principal principal,@PathVariable Long id) {
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null){
+            return ApiResponseWrapper.error("u dont have permission");
+        }
         Optional<Blog> blogOptional = blogRepo.findById(id);
 
         if (blogOptional.isEmpty()) {
             return ApiResponseWrapper.error("blog not found");
         }
 
-        return ApiResponseWrapper.ok(toDto(blogOptional.get()));
+        return ApiResponseWrapper.ok(toDto(blogOptional.get(), blogLikeRepo.countByBlogId(blogOptional.get().getId()), blogCommentRepo.countByBlogId(blogOptional.get().getId())));
     }
 
     @Operation(
@@ -469,7 +487,7 @@ public class BlogController {
 
         blogRepo.save(blog);
 
-        return ApiResponseWrapper.ok(toDto(blog));
+        return ApiResponseWrapper.ok(toDto(blog,blogLikeRepo.countByBlogId(blog.getId()), blogCommentRepo.countByBlogId(blog.getId())));
     }
 
     @Operation(
@@ -573,4 +591,126 @@ public class BlogController {
         blogRepo.delete(blog);
         return ApiResponseWrapper.ok("blog deleted");
     }
+
+    @PostMapping("/like/{id}")
+    public ApiResponseWrapper<String> likeBlog(Principal principal, @PathVariable Long id) {
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("such user doesen't exist");
+        }
+        Blog blog = blogRepo.findById(id).orElse(null);
+        if (blog == null) {
+            return ApiResponseWrapper.error("cannot find blog");
+        }
+        if (blogLikeRepo.existsByBlogIdAndUserId(blog.getId(), me.getId())) {
+            return ApiResponseWrapper.ok("blog is liked");
+        }
+        if (userBlockRepo.existsByBlockedAndBlocker(me,blog.getAuthor()) || userBlockRepo.existsByBlockedAndBlocker(blog.getAuthor(),me)) {
+            return ApiResponseWrapper.error("cannot like post of blocked user");
+        }
+        BlogLike like = new BlogLike(blog, me);
+        blogLikeRepo.save(like);
+        return ApiResponseWrapper.ok("liked");
+    }
+    @DeleteMapping("/dislike/{id}")
+    public ApiResponseWrapper<String> dislikeBlog(Principal principal, @PathVariable Long id){
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("such user doesen't exist");
+        }
+        Blog blog = blogRepo.findById(id).orElse(null);
+        if (blog == null) {
+            return ApiResponseWrapper.error("cannot find blog");
+        }
+        if (!blogLikeRepo.existsByBlogIdAndUserId(blog.getId(), me.getId())) {
+            return ApiResponseWrapper.error("blog isn't liked");
+        }
+        BlogLike like = blogLikeRepo.findByBlogIdAndUserId(blog.getId(),me.getId());
+        blogLikeRepo.delete(like);
+        return ApiResponseWrapper.ok("deleted Succesfully");
+
+    }
+
+    @PostMapping("/comment/{id}")
+    public ApiResponseWrapper<String> addComment(Principal principal, @PathVariable Long id, @RequestParam String content){
+        if (content == null || content.isEmpty() || content.isBlank()){
+            return ApiResponseWrapper.error("content can't be empty");
+        }
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("user doesen't exists");
+        }
+        Blog blog = blogRepo.findById(id).orElse(null);
+        if(blog == null) {
+            return ApiResponseWrapper.error("blog doesen't exist");
+        }
+        if (userBlockRepo.existsByBlockedAndBlocker(me,blog.getAuthor()) || userBlockRepo.existsByBlockedAndBlocker(blog.getAuthor(),me)) {
+            return ApiResponseWrapper.error("cannot comment post of blocked user");
+        }
+        BlogComment comment = new BlogComment(blog,me ,content);
+        blogCommentRepo.save(comment);
+        return ApiResponseWrapper.ok("comment added");
+    }
+
+    @GetMapping("/comments/{id}")
+    public ApiResponseWrapper<List<CommentDTO>> getComments(Principal principal, @PathVariable Long id){
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("user doesen't exists");
+        }
+        Blog blog = blogRepo.findById(id).orElse(null);
+        if(blog == null) {
+            return ApiResponseWrapper.error("blog doesen't exist");
+        }
+        List<BlogComment> comments = blogCommentRepo.findByBlogId(blog.getId());
+        return ApiResponseWrapper.ok(
+                comments.stream().map(fr -> new CommentDTO(fr.getId(),fr.getAuthor().getUsername(),
+                        fr.getContent())).toList());
+    }
+    @DeleteMapping("/comments/{comment_id}")
+    public ApiResponseWrapper<String> deleteComment(Principal principal, @PathVariable("comment_id") Long commentId){
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("user doesen't exists");
+        }
+        BlogComment comment = blogCommentRepo.findById(commentId).orElse(null);
+        if (comment == null) {
+            return ApiResponseWrapper.error("coment doesent exist");
+        }
+        if(me.getId().equals(comment.getBlog().getAuthor().getId())) {
+            blogCommentRepo.delete(comment);
+            return ApiResponseWrapper.ok("deleted succesfully");
+        }
+        if(!comment.getAuthor().getId().equals( me.getId())) {
+            return ApiResponseWrapper.error("u ccannot remove comment that doesent belong to u if u are not the creator of the blog");
+        }
+        blogCommentRepo.delete(comment);
+        return ApiResponseWrapper.ok("deleted succcesfully");
+
+    }
+
+    @PutMapping("/comments/{comment_id}")
+    public ApiResponseWrapper<String> editComment(Principal principal, @PathVariable("comment_id") Long commentId, @RequestParam String content ){
+        User me = userRepo.findByUsername(principal.getName());
+        if (me == null) {
+            return ApiResponseWrapper.error("user doesen't exists");
+        }
+        BlogComment comment = blogCommentRepo.findById(commentId).orElse(null);
+        if (comment == null) {
+            return ApiResponseWrapper.error("coment doesent exist");
+        }
+        if(!comment.getAuthor().getId().equals(me.getId())) {
+            return ApiResponseWrapper.error("u ccannot edit comment that doesent belong to u if u are not the creator of the blog");
+        }
+        if (content == null || content.trim().isBlank()) {
+            return ApiResponseWrapper.error("content can't be empty");
+        }
+        comment.setContent(content);
+        blogCommentRepo.save(comment);
+        return ApiResponseWrapper.ok("updated succesfully");
+
+    }
+
+
+
 }

@@ -22,7 +22,6 @@ public class JwtUtil {
     private final long expirationMillis;
     private final String issuer;
 
-
     public JwtUtil(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.expiration-millis:3600000}") long expirationMillis,

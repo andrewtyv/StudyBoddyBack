@@ -12,6 +12,8 @@ public class BlogDTO {
     private Instant createdAt;
     private Instant updatedAt;
     private String clientId;
+    private long likes;
+    private long comments;
 
     public BlogDTO() {
     }
@@ -24,7 +26,9 @@ public class BlogDTO {
             String authorUsername,
             Instant createdAt,
             Instant updatedAt,
-            String clientId
+            String clientId,
+            long likes,
+            long comments
     ) {
         this.id = id;
         this.title = title;
@@ -34,6 +38,9 @@ public class BlogDTO {
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.clientId = clientId;
+        this.likes = likes;
+        this.comments = comments;
+
     }
 
     public Long getId() {
