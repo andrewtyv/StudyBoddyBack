@@ -41,7 +41,7 @@ public class BlogController {
     @Autowired
     UserBlockRepo userBlockRepo;
 
-    private BlogDTO toDto(Blog blog,long likes, long comments) {
+    private BlogDTO toDto(Blog blog,Long likes, Long comments, Boolean likedByMe) {
         return new BlogDTO(
                 blog.getId(),
                 blog.getTitle(),
@@ -52,7 +52,8 @@ public class BlogController {
                 blog.getUpdatedAt(),
                 blog.getClientId(),
                 likes,
-                comments
+                comments,
+                likedByMe
         );
     }
 
@@ -175,7 +176,7 @@ public class BlogController {
         if (clientId != null && !clientId.isBlank()) {
             Optional<Blog> existing = blogRepo.findByClientIdAndAuthor_Id(clientId, me.getId());
             if (existing.isPresent()) {
-                return ApiResponseWrapper.ok(toDto(existing.get(),blogLikeRepo.countByBlogId(existing.get().getId()), blogCommentRepo.countByBlogId(existing.get().getId())));
+                return ApiResponseWrapper.ok(toDto(existing.get(),blogLikeRepo.countByBlogId(existing.get().getId()), blogCommentRepo.countByBlogId(existing.get().getId()),blogLikeRepo.existsByBlogIdAndUserId(existing.get().getId(),me.getId())));
             }
         }
 
@@ -185,7 +186,7 @@ public class BlogController {
         }
 
         blogRepo.save(blog);
-        return ApiResponseWrapper.ok(toDto(blog,blogLikeRepo.countByBlogId(blog.getId()), blogCommentRepo.countByBlogId(blog.getId())));
+        return ApiResponseWrapper.ok(toDto(blog,blogLikeRepo.countByBlogId(blog.getId()), blogCommentRepo.countByBlogId(blog.getId()), blogLikeRepo.existsByBlogIdAndUserId(blog.getId(),me.getId())));
     }
 
     @Operation(
@@ -251,7 +252,8 @@ public class BlogController {
 
         List<BlogDTO> dto = new ArrayList<>();
         for (Blog blog : blogs) {
-            dto.add(toDto(blog, blogLikeRepo.countByBlogId(blog.getId()), blogCommentRepo.countByBlogId(blog.getId())));
+            Boolean likedByMe = blogLikeRepo.existsByBlogIdAndUserId(blog.getId(),me.getId());
+            dto.add(toDto(blog, blogLikeRepo.countByBlogId(blog.getId()), blogCommentRepo.countByBlogId(blog.getId()), likedByMe));
         }
 
         return ApiResponseWrapper.ok(dto);
@@ -318,7 +320,7 @@ public class BlogController {
             return ApiResponseWrapper.error("blog not found");
         }
 
-        return ApiResponseWrapper.ok(toDto(blogOptional.get(), blogLikeRepo.countByBlogId(blogOptional.get().getId()), blogCommentRepo.countByBlogId(blogOptional.get().getId())));
+        return ApiResponseWrapper.ok(toDto(blogOptional.get(), blogLikeRepo.countByBlogId(blogOptional.get().getId()), blogCommentRepo.countByBlogId(blogOptional.get().getId()),blogLikeRepo.existsByBlogIdAndUserId(blogOptional.get().getId(),me.getId())));
     }
 
     @Operation(
@@ -487,7 +489,7 @@ public class BlogController {
 
         blogRepo.save(blog);
 
-        return ApiResponseWrapper.ok(toDto(blog,blogLikeRepo.countByBlogId(blog.getId()), blogCommentRepo.countByBlogId(blog.getId())));
+        return ApiResponseWrapper.ok(toDto(blog,blogLikeRepo.countByBlogId(blog.getId()), blogCommentRepo.countByBlogId(blog.getId()),blogLikeRepo.existsByBlogIdAndUserId(blog.getId(),me.getId())));
     }
 
     @Operation(

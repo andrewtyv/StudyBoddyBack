@@ -33,6 +33,7 @@ public class BlogComment {
     // for offline sync
     @Column(unique = true)
     private String clientId;
+    public BlogComment(){}
 
     public BlogComment(Blog blog, User author , String content){
         this.blog = blog;

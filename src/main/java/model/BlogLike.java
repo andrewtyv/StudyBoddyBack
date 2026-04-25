@@ -26,6 +26,7 @@ public class BlogLike {
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
+    public BlogLike(){}
     public BlogLike (Blog blog, User user){
         this.blog = blog;
         this.user= user;
