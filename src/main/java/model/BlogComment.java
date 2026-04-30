@@ -35,12 +35,13 @@ public class BlogComment {
     private String clientId;
     public BlogComment(){}
 
-    public BlogComment(Blog blog, User author , String content){
+    public BlogComment(Blog blog, User author, String content, Instant createdAt) {
         this.blog = blog;
         this.author = author;
         this.content = content;
-        this.createdAt = Instant.now();
+        this.createdAt = createdAt != null ? createdAt : Instant.now();
     }
+
 
     public Blog getBlog() {
         return blog;

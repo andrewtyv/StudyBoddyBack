@@ -20,4 +20,5 @@ public enum Subject {
     TZIV,
     MATH_ANALYSYS,
     PPI,
+    NONE
 }

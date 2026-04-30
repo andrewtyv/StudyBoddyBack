@@ -27,21 +27,23 @@ public class Blog {
     @JoinColumn(name = "user_id", nullable = false)
     private User author;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Subject subject;
+
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
     @Column(nullable = false)
     private Instant updatedAt = Instant.now();
 
-    @Column(name = "client_id", length = 100)
-    private String clientId;
-
     public Blog() {
     }
 
-    public Blog(String title, String content, User author) {
+    public Blog(String title, String content, Subject subject, User author) {
         this.title = title;
         this.content = content;
+        this.subject = subject;
         this.author = author;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
@@ -76,8 +78,8 @@ public class Blog {
         return updatedAt;
     }
 
-    public String getClientId() {
-        return clientId;
+    public Subject getSubject() {
+        return subject;
     }
 
     public void setTitle(String title) {
@@ -96,7 +98,8 @@ public class Blog {
         this.updatedAt = updatedAt;
     }
 
-    public void setClientId(String clientId) {
-        this.clientId = clientId;
+    public void setSubject(Subject subject) {
+        this.subject = subject;
     }
+
 }

@@ -6,6 +6,9 @@ import DTO.*;
 import model.*;
 import org.checkerframework.checker.units.qual.A;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 import repos.*;
 
@@ -14,6 +17,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,16 +45,19 @@ public class BlogController {
     @Autowired
     UserBlockRepo userBlockRepo;
 
-    private BlogDTO toDto(Blog blog,Long likes, Long comments, Boolean likedByMe) {
+    @Autowired
+    StudentProfileRepo studentProfileRepo;
+
+    private BlogDTO toDto(Blog blog, Long likes, Long comments, Boolean likedByMe) {
         return new BlogDTO(
                 blog.getId(),
                 blog.getTitle(),
                 blog.getContent(),
+                blog.getSubject(),
                 blog.getAuthor().getId(),
                 blog.getAuthor().getUsername(),
                 blog.getCreatedAt(),
                 blog.getUpdatedAt(),
-                blog.getClientId(),
                 likes,
                 comments,
                 likedByMe
@@ -163,7 +170,7 @@ public class BlogController {
 
         String title = body.getTitle();
         String content = body.getContent();
-        String clientId = body.getClientId() != null ? body.getClientId().trim() : null;
+        Subject subject = body.getSubject();
 
         if (title == null || title.trim().isBlank()) {
             return ApiResponseWrapper.error("title is required");
@@ -173,20 +180,20 @@ public class BlogController {
             return ApiResponseWrapper.error("content is required");
         }
 
-        if (clientId != null && !clientId.isBlank()) {
-            Optional<Blog> existing = blogRepo.findByClientIdAndAuthor_Id(clientId, me.getId());
-            if (existing.isPresent()) {
-                return ApiResponseWrapper.ok(toDto(existing.get(),blogLikeRepo.countByBlogId(existing.get().getId()), blogCommentRepo.countByBlogId(existing.get().getId()),blogLikeRepo.existsByBlogIdAndUserId(existing.get().getId(),me.getId())));
-            }
+        if (subject == null) {
+            return ApiResponseWrapper.error("subject is required");
         }
 
-        Blog blog = new Blog(title.trim(), content.trim(), me);
-        if (clientId != null && !clientId.isBlank()) {
-            blog.setClientId(clientId);
-        }
+        Blog blog = new Blog(title.trim(), content.trim(), subject, me);
 
         blogRepo.save(blog);
-        return ApiResponseWrapper.ok(toDto(blog,blogLikeRepo.countByBlogId(blog.getId()), blogCommentRepo.countByBlogId(blog.getId()), blogLikeRepo.existsByBlogIdAndUserId(blog.getId(),me.getId())));
+
+        return ApiResponseWrapper.ok(toDto(
+                blog,
+                blogLikeRepo.countByBlogId(blog.getId()),
+                blogCommentRepo.countByBlogId(blog.getId()),
+                blogLikeRepo.existsByBlogIdAndUserId(blog.getId(), me.getId())
+        ));
     }
 
     @Operation(
@@ -234,31 +241,80 @@ public class BlogController {
             )
     })
     @GetMapping("/all")
-    public ApiResponseWrapper<List<BlogDTO>> getAllBlogs(Principal principal) {
+    public ApiResponseWrapper<Page<BlogDTO>> getAllBlogs(
+            Principal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) Subject subject
+    ) {
         User me = userRepo.findByUsername(principal.getName());
-        if (me == null){
+
+        if (me == null) {
             return ApiResponseWrapper.error("u dont have permission");
         }
-        List<Blog> blogs = blogRepo.findAllByOrderByCreatedAtDesc();
 
-        blogs.sort((a, b) -> {
-            boolean aTeacher = a.getAuthor().getRole() == UserRole.TEACHER;
-            boolean bTeacher = b.getAuthor().getRole() == UserRole.TEACHER;
-
-            if (aTeacher && !bTeacher) return -1;
-            if (!aTeacher && bTeacher) return 1;
-            return b.getCreatedAt().compareTo(a.getCreatedAt());
-        });
-
-        List<BlogDTO> dto = new ArrayList<>();
-        for (Blog blog : blogs) {
-            Boolean likedByMe = blogLikeRepo.existsByBlogIdAndUserId(blog.getId(),me.getId());
-            dto.add(toDto(blog, blogLikeRepo.countByBlogId(blog.getId()), blogCommentRepo.countByBlogId(blog.getId()), likedByMe));
+        if (page < 0) {
+            page = 0;
         }
 
-        return ApiResponseWrapper.ok(dto);
-    }
+        if (size <= 0) {
+            size = 10;
+        }
 
+        if (size > 30) {
+            size = 30;
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        StudentProfile studentProfile = studentProfileRepo.findByUser(me);
+
+        Set<Subject> preferredSubjects = Set.of();
+
+        if (studentProfile != null && studentProfile.getSubjects() != null) {
+            preferredSubjects = studentProfile.getSubjects();
+        }
+
+        Page<Blog> blogsPage;
+
+        if (subject != null) {
+            blogsPage = blogRepo.findFeedBySubject(
+                    me.getId(),
+                    subject,
+                    UserRole.TEACHER,
+                    pageable
+            );
+        } else if (preferredSubjects.isEmpty()) {
+            blogsPage = blogRepo.findFeedWithoutRecommendations(
+                    me.getId(),
+                    UserRole.TEACHER,
+                    pageable
+            );
+        } else {
+            blogsPage = blogRepo.findRecommendedFeed(
+                    me.getId(),
+                    preferredSubjects,
+                    UserRole.TEACHER,
+                    pageable
+            );
+        }
+
+        Page<BlogDTO> dtoPage = blogsPage.map(blog -> {
+            Boolean likedByMe = blogLikeRepo.existsByBlogIdAndUserId(
+                    blog.getId(),
+                    me.getId()
+            );
+
+            return toDto(
+                    blog,
+                    blogLikeRepo.countByBlogId(blog.getId()),
+                    blogCommentRepo.countByBlogId(blog.getId()),
+                    likedByMe
+            );
+        });
+
+        return ApiResponseWrapper.ok(dtoPage);
+    }
     @Operation(
             summary = "Get blog post by ID",
             description = "Returns one blog post by its ID."
@@ -482,10 +538,16 @@ public class BlogController {
                 return ApiResponseWrapper.error("conflict: blog was updated on server");
             }
         }
+        Subject subject = body.getSubject();
+
+        if (subject == null) {
+            return ApiResponseWrapper.error("subject is required");
+        }
 
         blog.setTitle(title.trim());
         blog.setContent(content.trim());
         blog.setUpdatedAt(Instant.now());
+        blog.setSubject(subject);
 
         blogRepo.save(blog);
 
@@ -634,7 +696,7 @@ public class BlogController {
     }
 
     @PostMapping("/comment/{id}")
-    public ApiResponseWrapper<String> addComment(Principal principal, @PathVariable Long id, @RequestParam String content){
+    public ApiResponseWrapper<String> addComment(Principal principal, @PathVariable Long id, @RequestParam String content, @RequestParam(required = false) Instant createdAt){
         if (content == null || content.isEmpty() || content.isBlank()){
             return ApiResponseWrapper.error("content can't be empty");
         }
@@ -649,7 +711,9 @@ public class BlogController {
         if (userBlockRepo.existsByBlockedAndBlocker(me,blog.getAuthor()) || userBlockRepo.existsByBlockedAndBlocker(blog.getAuthor(),me)) {
             return ApiResponseWrapper.error("cannot comment post of blocked user");
         }
-        BlogComment comment = new BlogComment(blog,me ,content);
+        Instant finalCreatedAt = createdAt != null ? createdAt : Instant.now();
+
+        BlogComment comment = new BlogComment(blog,me ,content,finalCreatedAt);
         blogCommentRepo.save(comment);
         return ApiResponseWrapper.ok("comment added");
     }
@@ -667,7 +731,7 @@ public class BlogController {
         List<BlogComment> comments = blogCommentRepo.findByBlogId(blog.getId());
         return ApiResponseWrapper.ok(
                 comments.stream().map(fr -> new CommentDTO(fr.getId(),fr.getAuthor().getUsername(),
-                        fr.getContent())).toList());
+                        fr.getContent(), fr.getCreatedAt())).toList());
     }
     @DeleteMapping("/comments/{comment_id}")
     public ApiResponseWrapper<String> deleteComment(Principal principal, @PathVariable("comment_id") Long commentId){
@@ -711,6 +775,54 @@ public class BlogController {
         blogCommentRepo.save(comment);
         return ApiResponseWrapper.ok("updated succesfully");
 
+    }
+
+    @GetMapping("/my")
+    public ApiResponseWrapper<Page<BlogDTO>> getMyBlogs(
+            Principal principal,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        User me = userRepo.findByUsername(principal.getName());
+
+        if (me == null) {
+            return ApiResponseWrapper.error("u dont have permission");
+        }
+
+        if (page < 0) {
+            page = 0;
+        }
+
+        if (size <= 0) {
+            size = 10;
+        }
+
+        if (size > 30) {
+            size = 30;
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<Blog> blogsPage = blogRepo.findByAuthorIdOrderByCreatedAtDesc(
+                me.getId(),
+                pageable
+        );
+
+        Page<BlogDTO> dtoPage = blogsPage.map(blog -> {
+            Boolean likedByMe = blogLikeRepo.existsByBlogIdAndUserId(
+                    blog.getId(),
+                    me.getId()
+            );
+
+            return toDto(
+                    blog,
+                    blogLikeRepo.countByBlogId(blog.getId()),
+                    blogCommentRepo.countByBlogId(blog.getId()),
+                    likedByMe
+            );
+        });
+
+        return ApiResponseWrapper.ok(dtoPage);
     }
 
 

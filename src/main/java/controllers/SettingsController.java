@@ -22,10 +22,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.security.Principal;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -866,6 +863,16 @@ public class SettingsController {
         userBlockRepo.delete(block);
         return ApiResponseWrapper.ok("unblocked succesfully");
 
+    }
+    @GetMapping("/subjects")
+    public ApiResponseWrapper<List<Subject>> getAllSubjects(Principal principal) {
+        User me = userRepo.findByUsername(principal.getName());
+
+        if (me == null) {
+            return ApiResponseWrapper.error("user not found");
+        }
+
+        return ApiResponseWrapper.ok(Arrays.asList(Subject.values()));
     }
 
 }
