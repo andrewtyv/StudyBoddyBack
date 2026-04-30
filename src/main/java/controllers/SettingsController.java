@@ -446,9 +446,6 @@ public class SettingsController {
         if (file == null || file.isEmpty()) {
             return ApiResponseWrapper.error("file is empty");
         }
-        if(me.getPhotoUrl()!= null){
-            return ApiResponseWrapper.error("u cant have 2 avatars");
-        }
 
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_TYPES.contains(contentType.toLowerCase())) {

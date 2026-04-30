@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import repos.*;
 
@@ -696,7 +697,7 @@ public class BlogController {
     }
 
     @PostMapping("/comment/{id}")
-    public ApiResponseWrapper<String> addComment(Principal principal, @PathVariable Long id, @RequestParam String content, @RequestParam(required = false) Instant createdAt){
+    public ApiResponseWrapper<String> addComment(Principal principal, @PathVariable Long id, @RequestParam String content, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant createdAt){
         if (content == null || content.isEmpty() || content.isBlank()){
             return ApiResponseWrapper.error("content can't be empty");
         }
