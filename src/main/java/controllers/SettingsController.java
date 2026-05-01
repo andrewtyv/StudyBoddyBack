@@ -581,35 +581,49 @@ public class SettingsController {
             )
     })
     @PutMapping("/settings")
-    public ApiResponseWrapper<String> setSettings(Principal principal,@RequestBody SettingsDTO dto){
+    public ApiResponseWrapper<String> setSettings(Principal principal, @RequestBody SettingsDTO dto) {
         User me = userRepo.findByUsername(principal.getName());
 
         if (me == null) {
             return ApiResponseWrapper.error("this user doesn't exist");
         }
 
-        if (dto.getDarkMode() == null && dto.getHighContrast() == null && dto.getShareLocation() ==null && dto.getPushNotifications() == null) {
-            return ApiResponseWrapper.error("all nulls");
+        if (dto.getDarkMode() != null) {
+            me.setDarkMode(dto.getDarkMode());
         }
 
-
-        if (dto.getDarkMode() != null)
-            me.setDarkMode(dto.getDarkMode());
-
-        if (dto.getHighContrast() != null)
+        if (dto.getHighContrast() != null) {
             me.setHighContrast(dto.getHighContrast());
+        }
 
-        if (dto.getShareLocation() != null)
+        if (dto.getShareLocation() != null) {
             me.setShareLocation(dto.getShareLocation());
-        if(dto.getStudyReminderEnabled() == Boolean.TRUE && dto.getStudyReminderHour() !=null && dto.getStudyReminderMinute()!= null)
-        {
-            me.setStudyReminderMinute(dto.getStudyReminderMinute());
-            me.setStudyReminderHour(dto.getStudyReminderHour());
-            me.setStudyReminderEnabled(dto.getStudyReminderEnabled());
         }
 
         if (dto.getPushNotifications() != null) {
             me.setPushNotificationsEnabled(dto.getPushNotifications());
+        }
+
+        if (dto.getStudyReminderEnabled() != null) {
+            if (dto.getStudyReminderEnabled()) {
+                if (dto.getStudyReminderHour() == null || dto.getStudyReminderMinute() == null) {
+                    return ApiResponseWrapper.error("study reminder hour and minute are required");
+                }
+
+                if (dto.getStudyReminderHour() < 0 || dto.getStudyReminderHour() > 23) {
+                    return ApiResponseWrapper.error("study reminder hour must be between 0 and 23");
+                }
+
+                if (dto.getStudyReminderMinute() < 0 || dto.getStudyReminderMinute() > 59) {
+                    return ApiResponseWrapper.error("study reminder minute must be between 0 and 59");
+                }
+
+                me.setStudyReminderEnabled(true);
+                me.setStudyReminderHour(dto.getStudyReminderHour());
+                me.setStudyReminderMinute(dto.getStudyReminderMinute());
+            } else {
+                me.setStudyReminderEnabled(false);
+            }
         }
 
         userRepo.save(me);

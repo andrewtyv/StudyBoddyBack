@@ -3,6 +3,7 @@ package repos;
 import model.*;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,5 +17,7 @@ public interface UserRepo extends JpaRepository<User, Long> {
     User findByEmailOrUsername(String email, String username);
 
     Optional<User> findByGoogleSub(String googleSub);
+
+    List<User> findByStudyReminderEnabledTrueAndExpoPushTokenIsNotNull();
 
 }
