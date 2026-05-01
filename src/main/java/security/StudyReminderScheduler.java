@@ -1,4 +1,4 @@
-package services;
+package security;
 
 import model.User;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +12,9 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 
 @Service
 public class StudyReminderScheduler {
@@ -23,10 +26,11 @@ public class StudyReminderScheduler {
 
     @Scheduled(cron = "0 * * * * *")
     public void checkStudyReminders() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
+        ZonedDateTime utcNow = now.atZone(ZoneOffset.UTC);
 
-        int currentHour = now.getHour();
-        int currentMinute = now.getMinute();
+        int currentHour = utcNow.getHour();
+        int currentMinute = utcNow.getMinute();
 
         List<User> users = userRepo.findByStudyReminderEnabledTrueAndExpoPushTokenIsNotNull();
 
@@ -35,13 +39,20 @@ public class StudyReminderScheduler {
                 if (user.getStudyReminderHour() == null || user.getStudyReminderMinute() == null) {
                     continue;
                 }
-
+                System.out.println("checking user" + user.getUsername());
                 if (user.getPushNotificationsEnabled() != null && !user.getPushNotificationsEnabled()) {
                     continue;
                 }
 
                 boolean sameHour = user.getStudyReminderHour().equals(currentHour);
                 boolean sameMinute = user.getStudyReminderMinute().equals(currentMinute);
+
+                System.out.println("USER: " + user.getUsername()
+                        + " | DB hour=" + user.getStudyReminderHour()
+                        + " DB min=" + user.getStudyReminderMinute()
+                        + " | UTC now hour=" + currentHour
+                        + " UTC now min=" + currentMinute
+                        + " | match=" + (sameHour && sameMinute));
 
                 if (sameHour && sameMinute) {
                     sendStudyReminderPush(user);
@@ -77,7 +88,7 @@ public class StudyReminderScheduler {
             Map<String, Object> payload = new HashMap<>();
             payload.put("to", user.getExpoPushToken());
             payload.put("title", "StudyBuddy");
-            payload.put("body", "Час вчитися 📚");
+            payload.put("body", "Time to study 📚");
             payload.put("sound", "default");
             payload.put("data", data);
 
