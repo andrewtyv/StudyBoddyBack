@@ -609,7 +609,7 @@ public class RoomController {
         invite.decline();
         roomInviteRepo.save(invite);
 
-        return ApiResponseWrapper.ok("accepted");
+        return ApiResponseWrapper.ok("decline");
     }
 
         /**
@@ -908,6 +908,10 @@ public class RoomController {
         if (targetMember == null) {
             return ApiResponseWrapper.error("Target membership not found");
         }
+        if(memberMe.getRole() == RoomMemberRole.ADMIN && (targetMember.getRole() == RoomMemberRole.ADMIN || targetMember.getRole() == RoomMemberRole.OWNER)){
+            return ApiResponseWrapper.error("you cannot remove this person");
+        }
+
 
         roomMemberRepo.delete(targetMember);
         return ApiResponseWrapper.ok("Deleted successfully");
@@ -1178,7 +1182,7 @@ public class RoomController {
 
             recipients.add(new MessageRecipient(recipient, message));
 
-            if (!roomPresenceTracker.isUserInRoom(room.getId(), recipient.getUsername())) {
+            if (!roomPresenceTracker.isUserInRoom(room.getId(), recipient.getUsername()) && member.getUser().getPushNotificationsEnabled()) {
                 sendExpoPush(recipient, me, room, message);
             }
         }

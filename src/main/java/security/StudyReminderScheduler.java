@@ -44,6 +44,7 @@ public class StudyReminderScheduler {
                     continue;
                 }
 
+
                 boolean sameHour = user.getStudyReminderHour().equals(currentHour);
                 boolean sameMinute = user.getStudyReminderMinute().equals(currentMinute);
 
