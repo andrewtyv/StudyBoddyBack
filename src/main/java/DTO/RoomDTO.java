@@ -43,5 +43,8 @@ public class RoomDTO {
         return this.roomType;
     }
 
+    public Integer getUnread() {
+        return this.unread;
+    }
 
 }

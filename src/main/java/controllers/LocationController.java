@@ -3,14 +3,17 @@ package controllers;
 import DTO.ApiResponseWrapper;
 import DTO.UserLocationDTO;
 import DTO.LocationUpdateRequestDTO;
+import model.StudentProfile;
 import model.User;
 import org.springframework.web.bind.annotation.*;
+import repos.StudentProfileRepo;
 import repos.UserRepo;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -23,9 +26,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Tag(name = "Location", description = "Endpoints for updating and retrieving user geolocation")
 public class    LocationController {
     private final UserRepo userRepo;
+    private final StudentProfileRepo studentProfileRepo;
 
-    public LocationController(UserRepo userRepo) {
+    public LocationController(UserRepo userRepo, StudentProfileRepo studentProfileRepo) {
         this.userRepo = userRepo;
+        this.studentProfileRepo = studentProfileRepo;
     }
     @Operation(
             summary = "Update my location",
@@ -404,7 +409,7 @@ public class    LocationController {
     }
 
     private UserLocationDTO toDto(User user) {
-        return new UserLocationDTO(
+        UserLocationDTO dto = new UserLocationDTO(
                 user.getId(),
                 user.getUsername(),
                 user.getLatitude(),
@@ -412,6 +417,19 @@ public class    LocationController {
                 user.getLocationUpdatedAt(),
                 user.getRole()
         );
+        StudentProfile profile = studentProfileRepo.findByUser(user);
+        if (profile != null) {
+            dto.setSchool(profile.getSchool());
+            dto.setFaculty(profile.getFaculty());
+            if (profile.getSubjects() != null) {
+                dto.setSubjects(
+                        profile.getSubjects().stream()
+                                .map(Enum::name)
+                                .collect(Collectors.toList())
+                );
+            }
+        }
+        return dto;
     }
 
     private double haversineKm(double lat1, double lon1, double lat2, double lon2) {
@@ -434,4 +452,3 @@ public class    LocationController {
         return Math.round(value * 1000.0) / 1000.0;
     }
 }
-

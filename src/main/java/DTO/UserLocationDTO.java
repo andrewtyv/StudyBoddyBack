@@ -3,6 +3,7 @@ package DTO;
 import model.UserRole;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class UserLocationDTO {
 
@@ -13,6 +14,9 @@ public class UserLocationDTO {
     private LocalDateTime updatedAt;
     private Double distanceKm;
     private UserRole userRole;
+    private String school;
+    private String faculty;
+    private List<String> subjects;
 
     public UserLocationDTO() {
     }
@@ -53,6 +57,12 @@ public class UserLocationDTO {
 
     public UserRole getUserRole() {return userRole; }
 
+    public String getSchool() { return school; }
+
+    public String getFaculty() { return faculty; }
+
+    public List<String> getSubjects() { return subjects; }
+
     public void setUserId(Long userId) {
         this.userId = userId;
     }
@@ -76,4 +86,10 @@ public class UserLocationDTO {
     public void setDistanceKm(Double distanceKm) {
         this.distanceKm = distanceKm;
     }
+
+    public void setSchool(String school) { this.school = school; }
+
+    public void setFaculty(String faculty) { this.faculty = faculty; }
+
+    public void setSubjects(List<String> subjects) { this.subjects = subjects; }
 }
