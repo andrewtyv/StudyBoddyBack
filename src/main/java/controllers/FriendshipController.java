@@ -128,20 +128,27 @@ public class FriendshipController {
         if (requester.getId().equals(addressee.getId())) {
             return ApiResponseWrapper.error("cannot add yourself");
         }
-
-        boolean exists = friendshipRepo.existsByRequester_IdAndAddressee_Id(requester.getId(), addressee.getId())
-                || friendshipRepo.existsByRequester_IdAndAddressee_Id(addressee.getId(), requester.getId());
-
-        if (exists) {
-            return ApiResponseWrapper.error("request already exists");
-        }
-        exists = userBlockRepo.existsByBlockedAndBlocker(requester,addressee) || userBlockRepo.existsByBlockedAndBlocker(addressee,requester);
+        boolean exists = userBlockRepo.existsByBlockedAndBlocker(requester,addressee) || userBlockRepo.existsByBlockedAndBlocker(addressee,requester);
         if (exists){
             return ApiResponseWrapper.error("someone is blocked...");
         }
 
+
+        Friendship friendship = friendshipRepo.findByRequester_IdAndAddressee_IdOrRequester_IdAndAddressee_Id(requester.getId(),addressee.getId(), addressee.getId(),requester.getId());
+        if (friendship!= null && friendship.getStatus() == FriendshipStatus.REJECTED) {
+            friendship.setRequester(requester);
+            friendship.setAddressee(addressee);
+            friendship.setStatus(FriendshipStatus.PENDING);
+            friendshipRepo.save(friendship);
+            return ApiResponseWrapper.ok("request successfully created");
+        }
+        if (friendship!= null) {
+            return ApiResponseWrapper.error("friendship already exist");
+        }
+
+
         friendshipRepo.save(new Friendship(requester, addressee));
-        return  ApiResponseWrapper.ok("request successfully create");
+        return  ApiResponseWrapper.ok("request successfully created");
     }
 
 

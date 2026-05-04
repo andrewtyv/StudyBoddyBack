@@ -76,5 +76,20 @@ public class Friendship {
         this.status = status;
     }
 
+    public void setAddressee(User addressee) {
+        this.addressee = addressee;
+    }
+
+    public void setRequester(User requester) {
+        this.requester = requester;
+    }
+
+    public void setFriendshipSentAt(LocalDateTime friendshipSentAt) {
+        this.friendshipSentAt = friendshipSentAt;
+    }
+
+    public void setFriendshipUpdatedAt(LocalDateTime friendshipUpdatedAt) {
+        this.friendshipUpdatedAt = friendshipUpdatedAt;
+    }
 }
 
