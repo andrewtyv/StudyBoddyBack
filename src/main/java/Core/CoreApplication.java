@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-@SpringBootApplication(scanBasePackages = {"Core", "controllers", "repos", "model", "security"})
+@SpringBootApplication(scanBasePackages = {"Core", "controllers", "repos", "model", "security","DTO"})
 @EnableJpaRepositories(basePackages = "repos")
 @EntityScan(basePackages = "model")
 @EnableScheduling
