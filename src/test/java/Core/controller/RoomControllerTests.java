@@ -1056,4 +1056,949 @@ public class RoomControllerTests {
 
         verify(roomMemberRepo, never()).save(any());
     }
+
+    @Test
+    public void myInvites_ShouldReturnInvites_WhenUserExists() {
+        authAs("friend");
+
+        User inviter = user(1L, "me");
+        User friend = user(2L, "friend");
+        Room room = groupRoom(100L, "group");
+        RoomInvite invite = invite(55L, room, inviter, friend);
+
+        when(userRepo.findByUsername("friend")).thenReturn(friend);
+        when(roomInviteRepo.findAllByInviteeIdAndStatus(2L, RoomInviteStatus.PENDING))
+                .thenReturn(List.of(invite));
+
+        ApiResponseWrapper<List<InviteDTO>> response = roomController.myInvites(principal);
+
+        assertTrue(response.isSuccess());
+        assertEquals(1, response.getData().size());
+    }
+
+    @Test
+    public void myInvites_ShouldReturnError_WhenUserNotFound() {
+        authAs("me");
+
+        when(userRepo.findByUsername("me")).thenReturn(null);
+
+        ApiResponseWrapper<List<InviteDTO>> response = roomController.myInvites(principal);
+
+        assertFalse(response.isSuccess());
+        assertEquals("User not found", response.getMessage());
+
+        verify(roomInviteRepo, never()).findAllByInviteeIdAndStatus(anyLong(), any());
+    }
+
+    @Test
+    public void createInvite_ShouldReturnError_WhenFriendIsNull() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        Room room = groupRoom(100L, "group");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(userRepo.findByUsername("friend")).thenReturn(null);
+        when(roomRepo.findById(100L)).thenReturn(Optional.of(room));
+
+        ApiResponseWrapper<String> response =
+                roomController.create_invite(principal, Map.of("username", "friend", "id", "100"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("something is null", response.getMessage());
+
+        verify(roomInviteRepo, never()).save(any());
+    }
+
+    @Test
+    public void createInvite_ShouldReturnError_WhenInvitingYourself() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        Room room = groupRoom(100L, "group");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(roomRepo.findById(100L)).thenReturn(Optional.of(room));
+
+        ApiResponseWrapper<String> response =
+                roomController.create_invite(principal, Map.of("username", "me", "id", "100"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("You cannot invite yourself", response.getMessage());
+
+        verify(roomInviteRepo, never()).save(any());
+    }
+
+    @Test
+    public void createInvite_ShouldReturnError_WhenRoomIsDirect() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        User friend = user(2L, "friend");
+        Room room = directRoom(100L, "1:2");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(userRepo.findByUsername("friend")).thenReturn(friend);
+        when(roomRepo.findById(100L)).thenReturn(Optional.of(room));
+
+        ApiResponseWrapper<String> response =
+                roomController.create_invite(principal, Map.of("username", "friend", "id", "100"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("Cannot invite users to direct room", response.getMessage());
+
+        verify(roomInviteRepo, never()).save(any());
+    }
+
+    @Test
+    public void createInvite_ShouldReturnError_WhenRequesterIsNotMember() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        User friend = user(2L, "friend");
+        Room room = groupRoom(100L, "group");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(userRepo.findByUsername("friend")).thenReturn(friend);
+        when(roomRepo.findById(100L)).thenReturn(Optional.of(room));
+        when(roomInviteRepo.existsByInviteeIdAndRoomIdAndStatus(2L, 100L, RoomInviteStatus.PENDING))
+                .thenReturn(false);
+        when(roomMemberRepo.existsByRoomIdAndUserId(100L, 1L)).thenReturn(false);
+
+        ApiResponseWrapper<String> response =
+                roomController.create_invite(principal, Map.of("username", "friend", "id", "100"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("You are not a member of this room", response.getMessage());
+
+        verify(roomInviteRepo, never()).save(any());
+    }
+
+    @Test
+    public void createInvite_ShouldReturnError_WhenFriendAlreadyMember() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        User friend = user(2L, "friend");
+        Room room = groupRoom(100L, "group");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(userRepo.findByUsername("friend")).thenReturn(friend);
+        when(roomRepo.findById(100L)).thenReturn(Optional.of(room));
+        when(roomInviteRepo.existsByInviteeIdAndRoomIdAndStatus(2L, 100L, RoomInviteStatus.PENDING))
+                .thenReturn(false);
+        when(roomMemberRepo.existsByRoomIdAndUserId(100L, 1L)).thenReturn(true);
+        when(roomMemberRepo.existsByRoomIdAndUserId(100L, 2L)).thenReturn(true);
+
+        ApiResponseWrapper<String> response =
+                roomController.create_invite(principal, Map.of("username", "friend", "id", "100"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("User is already a member of this room", response.getMessage());
+
+        verify(roomInviteRepo, never()).save(any());
+    }
+
+    @Test
+    public void createInvite_ShouldCreateInvite_WhenRequesterIsAdmin() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        User friend = user(2L, "friend");
+        Room room = groupRoom(100L, "group");
+        RoomMember admin = member(room, me, RoomMemberRole.ADMIN);
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(userRepo.findByUsername("friend")).thenReturn(friend);
+        when(roomRepo.findById(100L)).thenReturn(Optional.of(room));
+        when(roomInviteRepo.existsByInviteeIdAndRoomIdAndStatus(2L, 100L, RoomInviteStatus.PENDING))
+                .thenReturn(false);
+        when(roomMemberRepo.existsByRoomIdAndUserId(100L, 1L)).thenReturn(true);
+        when(roomMemberRepo.existsByRoomIdAndUserId(100L, 2L)).thenReturn(false);
+        when(roomMemberRepo.findByRoomIdAndUserId(100L, 1L)).thenReturn(admin);
+
+        ApiResponseWrapper<String> response =
+                roomController.create_invite(principal, Map.of("username", "friend", "id", "100"));
+
+        assertTrue(response.isSuccess());
+        assertEquals("invite created succesfully", response.getData());
+
+        verify(roomInviteRepo).save(any(RoomInvite.class));
+    }
+
+    @Test
+    public void accept_ShouldReturnError_WhenInviteAlreadyProcessed() {
+        authAs("friend");
+
+        User inviter = user(1L, "me");
+        User friend = user(2L, "friend");
+        Room room = groupRoom(100L, "group");
+        RoomInvite invite = invite(55L, room, inviter, friend);
+        invite.accept();
+
+        when(userRepo.findByUsername("friend")).thenReturn(friend);
+        when(roomInviteRepo.findById(55L)).thenReturn(Optional.of(invite));
+
+        ApiResponseWrapper<String> response =
+                roomController.accept(principal, Map.of("inviteId", "55"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("Invite already processed", response.getMessage());
+
+        verify(roomMemberRepo, never()).save(any());
+    }
+
+    @Test
+    public void accept_ShouldReturnError_WhenAlreadyInRoom() {
+        authAs("friend");
+
+        User inviter = user(1L, "me");
+        User friend = user(2L, "friend");
+        Room room = groupRoom(100L, "group");
+        RoomInvite invite = invite(55L, room, inviter, friend);
+
+        when(userRepo.findByUsername("friend")).thenReturn(friend);
+        when(roomInviteRepo.findById(55L)).thenReturn(Optional.of(invite));
+        when(roomMemberRepo.existsByRoomIdAndUserId(100L, 2L)).thenReturn(true);
+
+        ApiResponseWrapper<String> response =
+                roomController.accept(principal, Map.of("inviteId", "55"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("Already in room", response.getMessage());
+
+        verify(roomMemberRepo, never()).save(any());
+    }
+
+    @Test
+    public void decline_ShouldReturnError_WhenInviteAlreadyProcessed() {
+        authAs("friend");
+
+        User inviter = user(1L, "me");
+        User friend = user(2L, "friend");
+        Room room = groupRoom(100L, "group");
+        RoomInvite invite = invite(55L, room, inviter, friend);
+        invite.decline();
+
+        when(userRepo.findByUsername("friend")).thenReturn(friend);
+        when(roomInviteRepo.findById(55L)).thenReturn(Optional.of(invite));
+
+        ApiResponseWrapper<String> response =
+                roomController.decline(principal, Map.of("inviteId", "55"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("Invite already processed", response.getMessage());
+
+        verify(roomInviteRepo, never()).save(invite);
+    }
+
+    @Test
+    public void decline_ShouldReturnError_WhenAlreadyInRoom() {
+        authAs("friend");
+
+        User inviter = user(1L, "me");
+        User friend = user(2L, "friend");
+        Room room = groupRoom(100L, "group");
+        RoomInvite invite = invite(55L, room, inviter, friend);
+
+        when(userRepo.findByUsername("friend")).thenReturn(friend);
+        when(roomInviteRepo.findById(55L)).thenReturn(Optional.of(invite));
+        when(roomMemberRepo.existsByRoomIdAndUserId(100L, 2L)).thenReturn(true);
+
+        ApiResponseWrapper<String> response =
+                roomController.decline(principal, Map.of("inviteId", "55"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("Already in room", response.getMessage());
+
+        verify(roomInviteRepo, never()).save(invite);
+    }
+
+    @Test
+    public void readMessages_ShouldReturnError_WhenRoomNotFound() {
+        authAs("me");
+
+        User me = user(1L, "me");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(roomRepo.findById(10L)).thenReturn(Optional.empty());
+        when(roomMemberRepo.existsByRoom_IdAndUser_Id(10L, 1L)).thenReturn(true);
+
+        ApiResponseWrapper<String> response =
+                roomController.ReadMessages(principal, Map.of("id", "10"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("room with provided id not found", response.getMessage());
+
+        verify(messageRecipientRepo, never()).save(any());
+    }
+
+    @Test
+    public void enterRoom_ShouldReturnError_WhenUserNotFound() {
+        authAs("me");
+
+        when(userRepo.findByUsername("me")).thenReturn(null);
+
+        ApiResponseWrapper<List<MessageDTO>> response =
+                roomController.enterRoom(principal, Map.of("id", "10"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("user not found", response.getMessage());
+    }
+
+    @Test
+    public void enterRoom_ShouldReturnError_WhenRoomIdMissing() {
+        authAs("me");
+
+        when(userRepo.findByUsername("me")).thenReturn(user(1L, "me"));
+
+        ApiResponseWrapper<List<MessageDTO>> response =
+                roomController.enterRoom(principal, Map.of());
+
+        assertFalse(response.isSuccess());
+        assertEquals("room id is required", response.getMessage());
+    }
+
+    @Test
+    public void enterRoom_ShouldReturnError_WhenRoomNotFound() {
+        authAs("me");
+
+        when(userRepo.findByUsername("me")).thenReturn(user(1L, "me"));
+        when(roomRepo.findById(10L)).thenReturn(Optional.empty());
+
+        ApiResponseWrapper<List<MessageDTO>> response =
+                roomController.enterRoom(principal, Map.of("id", "10"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("room with provided id not found", response.getMessage());
+    }
+
+    @Test
+    public void sendMessage_ShouldReturnWithoutSaving_WhenRequestIsNull() {
+        authAs("me");
+
+        when(userRepo.findByUsername("me")).thenReturn(user(1L, "me"));
+
+        roomController.sendMessage(principal, null);
+
+        verify(messageRepo, never()).save(any());
+        verify(messagingTemplate, never()).convertAndSend(anyString(), any(MessageWsDTO.class));
+    }
+
+    @Test
+    public void sendMessage_ShouldReturnWithoutSaving_WhenRoomIdIsNull() {
+        authAs("me");
+
+        SendMessageRequest req = new SendMessageRequest();
+        setField(req, "messageType", "TEXT");
+        setField(req, "content", "hello");
+
+        when(userRepo.findByUsername("me")).thenReturn(user(1L, "me"));
+
+        roomController.sendMessage(principal, req);
+
+        verify(messageRepo, never()).save(any());
+    }
+
+    @Test
+    public void sendMessage_ShouldReturnWithoutSaving_WhenRoomNotFound() {
+        authAs("me");
+
+        SendMessageRequest req = new SendMessageRequest();
+        setField(req, "roomId", 10L);
+        setField(req, "messageType", "TEXT");
+        setField(req, "content", "hello");
+
+        when(userRepo.findByUsername("me")).thenReturn(user(1L, "me"));
+        when(roomRepo.findById(10L)).thenReturn(Optional.empty());
+
+        roomController.sendMessage(principal, req);
+
+        verify(messageRepo, never()).save(any());
+    }
+
+    @Test
+    public void sendMessage_ShouldReturnWithoutSaving_WhenUserIsNotMember() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        Room room = groupRoom(10L, "group");
+
+        SendMessageRequest req = new SendMessageRequest();
+        setField(req, "roomId", 10L);
+        setField(req, "messageType", "TEXT");
+        setField(req, "content", "hello");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepo.existsByRoom_IdAndUser_Id(10L, 1L)).thenReturn(false);
+
+        roomController.sendMessage(principal, req);
+
+        verify(messageRepo, never()).save(any());
+    }
+
+    @Test
+    public void sendMessage_ShouldReturnWithoutSaving_WhenMessageTypeInvalid() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        Room room = groupRoom(10L, "group");
+
+        SendMessageRequest req = new SendMessageRequest();
+        setField(req, "roomId", 10L);
+        setField(req, "messageType", "BAD_TYPE");
+        setField(req, "content", "hello");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepo.existsByRoom_IdAndUser_Id(10L, 1L)).thenReturn(true);
+
+        roomController.sendMessage(principal, req);
+
+        verify(messageRepo, never()).save(any());
+    }
+
+    @Test
+    public void sendMessage_ShouldReturnWithoutSaving_WhenPhotoContentBlank() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        Room room = groupRoom(10L, "group");
+
+        SendMessageRequest req = new SendMessageRequest();
+        setField(req, "roomId", 10L);
+        setField(req, "messageType", "PHOTO");
+        setField(req, "content", "   ");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepo.existsByRoom_IdAndUser_Id(10L, 1L)).thenReturn(true);
+
+        roomController.sendMessage(principal, req);
+
+        verify(messageRepo, never()).save(any());
+    }
+
+    @Test
+    public void uploadPhoto_ShouldReturnBadRequest_WhenFileIsEmpty() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "photo.jpg",
+                "image/jpeg",
+                new byte[0]
+        );
+
+        ResponseEntity<?> response = roomController.uploadPhoto(principal, file, 10L);
+
+        assertEquals(400, response.getStatusCode().value());
+        assertEquals("File is empty", response.getBody());
+    }
+
+    @Test
+    public void uploadPhoto_ShouldReturnBadRequest_WhenUserNotFound() {
+        authAs("me");
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "photo.jpg",
+                "image/jpeg",
+                "fake-image".getBytes()
+        );
+
+        when(userRepo.findByUsername("me")).thenReturn(null);
+
+        ResponseEntity<?> response = roomController.uploadPhoto(principal, file, 10L);
+
+        assertEquals(400, response.getStatusCode().value());
+        assertEquals("User not found", response.getBody());
+    }
+
+    @Test
+    public void uploadPhoto_ShouldReturnBadRequest_WhenRoomNotFound() {
+        authAs("me");
+
+        User me = user(1L, "me");
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "photo.jpg",
+                "image/jpeg",
+                "fake-image".getBytes()
+        );
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(roomRepo.findById(10L)).thenReturn(Optional.empty());
+
+        ResponseEntity<?> response = roomController.uploadPhoto(principal, file, 10L);
+
+        assertEquals(400, response.getStatusCode().value());
+        assertEquals("Room not found", response.getBody());
+    }
+
+    @Test
+    public void getMembers_ShouldReturnError_WhenUserNotFound() {
+        authAs("me");
+
+        when(userRepo.findByUsername("me")).thenReturn(null);
+
+        ApiResponseWrapper<List<MemberDTO>> response =
+                roomController.getMembers(principal, 10L);
+
+        assertFalse(response.isSuccess());
+        assertEquals("user not found", response.getMessage());
+    }
+
+    @Test
+    public void getMembers_ShouldReturnError_WhenRoomNotFound() {
+        authAs("me");
+
+        when(userRepo.findByUsername("me")).thenReturn(user(1L, "me"));
+        when(roomRepo.findById(10L)).thenReturn(Optional.empty());
+
+        ApiResponseWrapper<List<MemberDTO>> response =
+                roomController.getMembers(principal, 10L);
+
+        assertFalse(response.isSuccess());
+        assertEquals("room not found", response.getMessage());
+    }
+
+    @Test
+    public void getFriendsNotInGroup_ShouldReturnError_WhenRoomNotFound() {
+        when(roomRepo.findById(10L)).thenReturn(Optional.empty());
+
+        ApiResponseWrapper<List<UserDTO>> response =
+                roomController.getFriendsNotInGroup(principal, 10L);
+
+        assertFalse(response.isSuccess());
+        assertEquals("room doesn't exists", response.getMessage());
+    }
+
+    @Test
+    public void getFriendsNotInGroup_ShouldReturnOnlyFriendsWhoAreNotMembers() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        User anna = user(2L, "anna");
+        User bob = user(3L, "bob");
+
+        Room room = groupRoom(10L, "group");
+        member(room, me, RoomMemberRole.OWNER);
+        member(room, bob, RoomMemberRole.MEMBER);
+
+        Friendship friendshipWithAnna = mock(Friendship.class);
+        when(friendshipWithAnna.getAddressee()).thenReturn(anna);
+
+        Friendship friendshipWithBob = mock(Friendship.class);
+        when(friendshipWithBob.getAddressee()).thenReturn(bob);
+
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(friendshipRepo.findByStatusAndRequester_IdOrStatusAndAddressee_Id(
+                FriendshipStatus.ACCEPTED, 1L,
+                FriendshipStatus.ACCEPTED, 1L
+        )).thenReturn(List.of(friendshipWithAnna, friendshipWithBob));
+
+        ApiResponseWrapper<List<UserDTO>> response =
+                roomController.getFriendsNotInGroup(principal, 10L);
+
+        assertTrue(response.isSuccess());
+        assertEquals(1, response.getData().size());
+        assertEquals("anna", response.getData().get(0).getUsername());
+    }
+
+    @Test
+    public void generateToken_ShouldReturnError_WhenRoomNotFound() {
+        when(roomRepo.findById(10L)).thenReturn(Optional.empty());
+
+        ApiResponseWrapper<String> response =
+                roomController.generateToken(principal, 10L);
+
+        assertFalse(response.isSuccess());
+        assertEquals("Room doesn't exists", response.getMessage());
+
+        verify(roomRepo, never()).save(any());
+    }
+
+    @Test
+    public void generateToken_ShouldReturnError_WhenUserNotFound() {
+        authAs("me");
+
+        Room room = groupRoom(10L, "group");
+
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(userRepo.findByUsername("me")).thenReturn(null);
+
+        ApiResponseWrapper<String> response =
+                roomController.generateToken(principal, 10L);
+
+        assertFalse(response.isSuccess());
+        assertEquals("User not found", response.getMessage());
+
+        verify(roomRepo, never()).save(any());
+    }
+
+    @Test
+    public void generateToken_ShouldReturnError_WhenUserIsNotMember() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        User other = user(2L, "other");
+
+        Room room = groupRoom(10L, "group");
+        member(room, other, RoomMemberRole.OWNER);
+
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(userRepo.findByUsername("me")).thenReturn(me);
+
+        ApiResponseWrapper<String> response =
+                roomController.generateToken(principal, 10L);
+
+        assertFalse(response.isSuccess());
+        assertEquals("You are not a member of this room", response.getMessage());
+
+        verify(roomRepo, never()).save(any());
+    }
+
+    @Test
+    public void generateToken_ShouldGenerateToken_WhenUserIsAdmin() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        Room room = groupRoom(10L, "group");
+        RoomMember admin = member(room, me, RoomMemberRole.ADMIN);
+
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(roomMemberRepo.findByRoomIdAndUserId(10L, 1L)).thenReturn(admin);
+
+        ApiResponseWrapper<String> response =
+                roomController.generateToken(principal, 10L);
+
+        assertTrue(response.isSuccess());
+        assertTrue(response.getData().startsWith("studybuddy://join-room?token="));
+
+        verify(roomRepo).save(room);
+    }
+
+    @Test
+    public void joinByToken_ShouldReturnError_WhenTokenIsBlank() {
+        ApiResponseWrapper<String> response =
+                roomController.joinByToken(principal, Map.of("token", "   "));
+
+        assertFalse(response.isSuccess());
+        assertEquals("null token", response.getMessage());
+    }
+
+    @Test
+    public void joinByToken_ShouldReturnError_WhenUserNotFound() {
+        authAs("me");
+
+        when(userRepo.findByUsername("me")).thenReturn(null);
+
+        ApiResponseWrapper<String> response =
+                roomController.joinByToken(principal, Map.of("token", "abc"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("User not found", response.getMessage());
+    }
+
+    @Test
+    public void joinByToken_ShouldReturnError_WhenTokenInvalid() {
+        authAs("me");
+
+        User me = user(1L, "me");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(roomRepo.findByInviteToken("abc")).thenReturn(null);
+
+        ApiResponseWrapper<String> response =
+                roomController.joinByToken(principal, Map.of("token", "abc"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("Invalid token", response.getMessage());
+    }
+
+    @Test
+    public void deleteRoom_ShouldReturnError_WhenRoomNotFound() {
+        authAs("me");
+
+        when(userRepo.findByUsername("me")).thenReturn(user(1L, "me"));
+        when(roomRepo.findById(10L)).thenReturn(Optional.empty());
+
+        ApiResponseWrapper<String> response =
+                roomController.deleteRoom(principal, 10L);
+
+        assertFalse(response.isSuccess());
+        assertEquals("null data", response.getMessage());
+
+        verify(roomRepo, never()).delete(any());
+    }
+
+    @Test
+    public void deleteRoom_ShouldReturnError_WhenUserIsNotMember() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        Room room = groupRoom(10L, "group");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepo.existsByRoom_IdAndUser_Id(10L, 1L)).thenReturn(false);
+
+        ApiResponseWrapper<String> response =
+                roomController.deleteRoom(principal, 10L);
+
+        assertFalse(response.isSuccess());
+        assertEquals("U are not the member of this group", response.getMessage());
+
+        verify(roomRepo, never()).delete(any());
+    }
+
+    @Test
+    public void deleteMember_ShouldReturnError_WhenUserNotFound() {
+        authAs("me");
+
+        when(userRepo.findByUsername("me")).thenReturn(null);
+
+        ApiResponseWrapper<String> response =
+                roomController.deleteMember(principal, Map.of("room_id", "10", "username", "enemy"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("User not found", response.getMessage());
+
+        verify(roomMemberRepo, never()).delete(any());
+    }
+
+    @Test
+    public void deleteMember_ShouldReturnError_WhenRoomNotFound() {
+        authAs("me");
+
+        when(userRepo.findByUsername("me")).thenReturn(user(1L, "me"));
+        when(roomRepo.findById(10L)).thenReturn(Optional.empty());
+
+        ApiResponseWrapper<String> response =
+                roomController.deleteMember(principal, Map.of("room_id", "10", "username", "enemy"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("Room not found", response.getMessage());
+
+        verify(roomMemberRepo, never()).delete(any());
+    }
+
+    @Test
+    public void deleteMember_ShouldReturnError_WhenRoomIsDirect() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        Room room = directRoom(10L, "1:2");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+
+        ApiResponseWrapper<String> response =
+                roomController.deleteMember(principal, Map.of("room_id", "10", "username", "enemy"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("Can't delete member from direct room", response.getMessage());
+
+        verify(roomMemberRepo, never()).delete(any());
+    }
+
+    @Test
+    public void deleteMember_ShouldReturnError_WhenTargetUserNotFound() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        Room room = groupRoom(10L, "group");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(userRepo.findByUsername("enemy")).thenReturn(null);
+
+        ApiResponseWrapper<String> response =
+                roomController.deleteMember(principal, Map.of("room_id", "10", "username", "enemy"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("User to delete not found", response.getMessage());
+
+        verify(roomMemberRepo, never()).delete(any());
+    }
+
+    @Test
+    public void deleteMember_ShouldReturnError_WhenDeletingYourself() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        Room room = groupRoom(10L, "group");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+
+        ApiResponseWrapper<String> response =
+                roomController.deleteMember(principal, Map.of("room_id", "10", "username", "me"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("You cannot delete yourself", response.getMessage());
+
+        verify(roomMemberRepo, never()).delete(any());
+    }
+
+    @Test
+    public void deleteMember_ShouldReturnError_WhenOneUserIsNotMember() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        User enemy = user(2L, "enemy");
+        Room room = groupRoom(10L, "group");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(userRepo.findByUsername("enemy")).thenReturn(enemy);
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepo.existsByRoom_IdAndUser_Id(10L, 1L)).thenReturn(true);
+        when(roomMemberRepo.existsByRoom_IdAndUser_Id(10L, 2L)).thenReturn(false);
+
+        ApiResponseWrapper<String> response =
+                roomController.deleteMember(principal, Map.of("room_id", "10", "username", "enemy"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("You or target user are not members of this group", response.getMessage());
+
+        verify(roomMemberRepo, never()).delete(any());
+    }
+
+    @Test
+    public void deleteMember_ShouldReturnError_WhenAdminTriesToRemoveAdmin() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        User enemy = user(2L, "enemy");
+        Room room = groupRoom(10L, "group");
+
+        RoomMember requester = member(room, me, RoomMemberRole.ADMIN);
+        RoomMember target = member(room, enemy, RoomMemberRole.ADMIN);
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(userRepo.findByUsername("enemy")).thenReturn(enemy);
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepo.existsByRoom_IdAndUser_Id(10L, 1L)).thenReturn(true);
+        when(roomMemberRepo.existsByRoom_IdAndUser_Id(10L, 2L)).thenReturn(true);
+        when(roomMemberRepo.findByRoom_IdAndUser_Id(10L, 1L)).thenReturn(requester);
+        when(roomMemberRepo.findByRoom_IdAndUser_Id(10L, 2L)).thenReturn(target);
+
+        ApiResponseWrapper<String> response =
+                roomController.deleteMember(principal, Map.of("room_id", "10", "username", "enemy"));
+
+        assertFalse(response.isSuccess());
+        assertEquals("you cannot remove this person", response.getMessage());
+
+        verify(roomMemberRepo, never()).delete(any());
+    }
+
+    @Test
+    public void grantRole_ShouldReturnError_WhenTargetUserNotFound() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        Room room = groupRoom(10L, "group");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(userRepo.findByUsername("friend")).thenReturn(null);
+
+        ApiResponseWrapper<String> response =
+                roomController.grantRole(principal, Map.of(
+                        "room_id", "10",
+                        "username", "friend",
+                        "role", "ADMIN"
+                ));
+
+        assertFalse(response.isSuccess());
+        assertEquals("wrong room or users", response.getMessage());
+
+        verify(roomMemberRepo, never()).save(any());
+    }
+
+    @Test
+    public void grantRole_ShouldReturnError_WhenRequesterIsNotMember() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        User friend = user(2L, "friend");
+        Room room = groupRoom(10L, "group");
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(userRepo.findByUsername("friend")).thenReturn(friend);
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepo.findByRoom_IdAndUser_Id(10L, 1L)).thenReturn(null);
+
+        ApiResponseWrapper<String> response =
+                roomController.grantRole(principal, Map.of(
+                        "room_id", "10",
+                        "username", "friend",
+                        "role", "ADMIN"
+                ));
+
+        assertFalse(response.isSuccess());
+        assertEquals("u are not the member of this group", response.getMessage());
+
+        verify(roomMemberRepo, never()).save(any());
+    }
+
+    @Test
+    public void grantRole_ShouldReturnError_WhenTryingToGrantOwner() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        User friend = user(2L, "friend");
+        Room room = groupRoom(10L, "group");
+
+        RoomMember owner = member(room, me, RoomMemberRole.OWNER);
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(userRepo.findByUsername("friend")).thenReturn(friend);
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepo.findByRoom_IdAndUser_Id(10L, 1L)).thenReturn(owner);
+
+        ApiResponseWrapper<String> response =
+                roomController.grantRole(principal, Map.of(
+                        "room_id", "10",
+                        "username", "friend",
+                        "role", "OWNER"
+                ));
+
+        assertFalse(response.isSuccess());
+        assertEquals("role dosent exist or u are trying to add new owner", response.getMessage());
+
+        verify(roomMemberRepo, never()).save(any());
+    }
+
+    @Test
+    public void grantRole_ShouldReturnError_WhenTargetIsNotMember() {
+        authAs("me");
+
+        User me = user(1L, "me");
+        User friend = user(2L, "friend");
+        Room room = groupRoom(10L, "group");
+
+        RoomMember owner = member(room, me, RoomMemberRole.OWNER);
+
+        when(userRepo.findByUsername("me")).thenReturn(me);
+        when(userRepo.findByUsername("friend")).thenReturn(friend);
+        when(roomRepo.findById(10L)).thenReturn(Optional.of(room));
+        when(roomMemberRepo.findByRoom_IdAndUser_Id(10L, 1L)).thenReturn(owner);
+        when(roomMemberRepo.findByRoom_IdAndUser_Id(10L, 2L)).thenReturn(null);
+
+        ApiResponseWrapper<String> response =
+                roomController.grantRole(principal, Map.of(
+                        "room_id", "10",
+                        "username", "friend",
+                        "role", "ADMIN"
+                ));
+
+        assertFalse(response.isSuccess());
+        assertEquals("Selected user are not the member of this group", response.getMessage());
+
+        verify(roomMemberRepo, never()).save(any());
+    }
 }
